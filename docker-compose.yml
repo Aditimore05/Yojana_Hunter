@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  db:
+    image: pgvector/pgvector:pg15
+    container_name: yojana_hunter_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-yojana_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-yojana_password}
+      POSTGRES_DB: ${POSTGRES_DB:-yojana_hunter}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-yojana_user} -d ${POSTGRES_DB:-yojana_hunter}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: yojana_hunter_backend
+    restart: always
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-yojana_user}:${POSTGRES_PASSWORD:-yojana_password}@db:5432/${POSTGRES_DB:-yojana_hunter}
+      JWT_SECRET: ${JWT_SECRET:-changeme_in_production_secret_key_12345}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - uploads_data:/app/uploads
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: yojana_hunter_frontend
+    restart: always
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+
+volumes:
+  pgdata:
+  uploads_data:

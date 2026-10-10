@@ -17,10 +17,11 @@ Instead of passive scheme directories or hallucination-prone chatbots, Yojana Hu
 
 ---
 
-## 📑 Full Project Requirements Document (PRD)
+## 📑 Project Documentation Index
 
-The complete specification, functional modules, architecture diagrams, database schemas, and sprint roadmap are documented in:
-👉 **[PROJECT_REQUIREMENTS_DOCUMENT.md](./PROJECT_REQUIREMENTS_DOCUMENT.md)**
+* 👉 **[PROJECT_REQUIREMENTS_DOCUMENT.md](./PROJECT_REQUIREMENTS_DOCUMENT.md)**: Full requirements document (33 sections, specifications & appendix).
+* 👉 **[ARCHITECTURE.md](./ARCHITECTURE.md)**: Detailed system architecture (Next.js 14, FastAPI, PostgreSQL + pgvector, 6 agents & RAG + Rule Engine).
+* 👉 **[USER_STORIES.md](./USER_STORIES.md)**: Agile user stories across all personas, acceptance criteria, and traceability matrix.
 
 ---
 
