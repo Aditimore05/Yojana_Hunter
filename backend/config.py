@@ -1,25 +1,32 @@
 import os
-from pydantic_settings import BaseSettings
+from dotenv import load_dotenv
 
-class Settings(BaseSettings):
-    PROJECT_NAME: str = "Yojana Hunter"
-    API_V1_STR: str = "/api/v1"
+# Load environment variables from .env file
+load_dotenv()
+
+class Config:
+    PROJECT_NAME: str = os.getenv("PROJECT_NAME", "Yojana Hunter")
+    FLASK_ENV: str = os.getenv("FLASK_ENV", "development")
+    DEBUG: bool = os.getenv("FLASK_DEBUG", "True").lower() in ("true", "1", "yes")
+    PORT: int = int(os.getenv("PORT", "5000"))
+    HOST: str = os.getenv("HOST", "127.0.0.1")
+
+    # PostgreSQL Database URL
+    # Supports postgresql+psycopg:// or postgresql+psycopg2://
     DATABASE_URL: str = os.getenv(
-        "DATABASE_URL", 
-        "postgresql+asyncpg://yojana_user:yojana_password@localhost:5432/yojana_hunter"
+        "DATABASE_URL",
+        "postgresql+psycopg://postgres:postgres@localhost:5432/yojana_hunter"
     )
-    JWT_SECRET: str = os.getenv("JWT_SECRET", "super-secret-key-for-dev-environment-123")
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 
-    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
-    ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
-    
-    UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "uploads")
-    MAX_UPLOAD_SIZE_MB: int = 10
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "yojana-hunter-secret-key-change-in-production")
+    CORS_ORIGINS: list = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5000",
+        "http://127.0.0.1:5000"
+    ]
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    UPLOAD_DIR: str = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
+    MAX_CONTENT_LENGTH: int = 16 * 1024 * 1024  # 16 MB max file upload
 
-settings = Settings()
+config = Config()

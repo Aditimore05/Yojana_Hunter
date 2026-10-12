@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 120" fill="none">
+  <!-- State Emblem of India representation -->
+  <g fill="#102044">
+    <!-- Center Lion -->
+    <path d="M42 22C42 16 46 12 50 12C54 12 58 16 58 22V32C56 34 54 36 50 36C46 36 44 34 42 32V22Z"/>
+    <circle cx="50" cy="18" r="3" fill="#FFFFFF"/>
+    <!-- Left Lion Profile -->
+    <path d="M30 26C30 20 34 16 38 18C42 20 42 28 40 34C36 34 32 32 30 26Z"/>
+    <circle cx="36" cy="24" r="2" fill="#FFFFFF"/>
+    <!-- Right Lion Profile -->
+    <path d="M70 26C70 20 66 16 62 18C58 20 58 28 60 34C64 34 68 32 70 26Z"/>
+    <circle cx="64" cy="24" r="2" fill="#FFFFFF"/>
+    <!-- Mane details -->
+    <path d="M35 34C35 44 42 50 50 50C58 50 65 44 65 34C60 36 50 38 40 36Z"/>
+    <!-- Abacus Base -->
+    <rect x="24" y="52" width="52" height="6" rx="2"/>
+    <rect x="20" y="58" width="60" height="14" rx="2" fill="#1E293B"/>
+    <!-- Ashoka Chakra on Abacus -->
+    <circle cx="50" cy="65" r="5" stroke="#FFFFFF" stroke-width="1.2" fill="none"/>
+    <circle cx="50" cy="65" r="1.5" fill="#FFFFFF"/>
+    <!-- Horse & Bull representations -->
+    <circle cx="32" cy="65" r="2.5" fill="#94A3B8"/>
+    <circle cx="68" cy="65" r="2.5" fill="#94A3B8"/>
+    <!-- Lower Base -->
+    <rect x="16" y="72" width="68" height="6" rx="1"/>
+    <path d="M22 78L26 84H74L78 78H22Z"/>
+    <!-- Satyameva Jayate Banner -->
+    <rect x="25" y="88" width="50" height="4" rx="1" fill="#475569"/>
+  </g>
+  <text x="50" y="105" text-anchor="middle" font-family="serif" font-size="8" font-weight="bold" fill="#102044" letter-spacing="1">
+    सत्यमेव जयते
+  </text>
+  <text x="50" y="115" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6" font-weight="600" fill="#64748B" letter-spacing="0.5">
+    GOVERNMENT OF INDIA
+  </text>
+</svg>

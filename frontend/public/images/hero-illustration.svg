@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 480" fill="none">
+  <defs>
+    <radialGradient id="heroGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#E0F2FE" stop-opacity="0.9"/>
+      <stop offset="60%" stop-color="#E0E7FF" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#F1F7FF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="skin" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F8B179"/>
+      <stop offset="100%" stop-color="#E2955B"/>
+    </linearGradient>
+    <linearGradient id="kurti" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3B82F6"/>
+      <stop offset="100%" stop-color="#1D4ED8"/>
+    </linearGradient>
+    <linearGradient id="hair" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1E293B"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#102044" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+
+  <!-- Background Aura -->
+  <circle cx="270" cy="240" r="210" fill="url(#heroGlow)"/>
+  
+  <!-- Subtle Parliament / Heritage Dome in background -->
+  <path d="M380 320V240C380 200 420 180 440 180C460 180 500 200 500 240V320H380Z" fill="#CFE2FE" opacity="0.6"/>
+  <rect x="436" y="150" width="8" height="30" fill="#93C5FD"/>
+  <circle cx="440" cy="146" r="6" fill="#60A5FA"/>
+  <rect x="370" y="320" width="140" height="20" fill="#BFDBFE"/>
+  <circle cx="440" cy="230" r="16" fill="#FFFFFF" opacity="0.8"/>
+  <rect x="400" y="270" width="16" height="50" rx="8" fill="#DBEAFE"/>
+  <rect x="432" y="270" width="16" height="50" rx="8" fill="#DBEAFE"/>
+  <rect x="464" y="270" width="16" height="50" rx="8" fill="#DBEAFE"/>
+
+  <!-- Floating Scheme Badge 1 (Left top) -->
+  <g transform="translate(40, 140)" filter="url(#shadow)">
+    <rect width="64" height="64" rx="14" fill="#FFFFFF"/>
+    <rect x="14" y="14" width="36" height="36" rx="10" fill="#FEF3C7"/>
+    <path d="M26 32L30 36L38 28" stroke="#D97706" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M23 20H37" stroke="#D97706" stroke-width="2" stroke-linecap="round"/>
+  </g>
+
+  <!-- Speech bubble "Let's find the schemes you're eligible for!" -->
+  <g transform="translate(180, 50)" filter="url(#shadow)">
+    <rect width="260" height="52" rx="20" fill="#FFFFFF"/>
+    <path d="M220 52L230 64L242 52Z" fill="#FFFFFF"/>
+    <text x="24" y="31" font-family="system-ui, sans-serif" font-size="12.5" font-weight="600" fill="#1E293B">
+      Let's find the schemes you're eligible for!
+    </text>
+  </g>
+
+  <!-- Illustrated Young Indian Woman Character -->
+  <!-- Hair Back -->
+  <path d="M210 180C210 120 270 95 330 110C375 125 385 190 380 260C365 300 340 330 330 340C320 290 310 240 310 210L210 180Z" fill="url(#hair)"/>
+
+  <!-- Neck -->
+  <path d="M272 260V290H298V260H272Z" fill="url(#skin)"/>
+
+  <!-- Head / Face -->
+  <ellipse cx="282" cy="210" rx="42" ry="48" fill="url(#skin)"/>
+
+  <!-- Hair Front -->
+  <path d="M240 185C250 145 285 140 315 150C330 155 340 180 342 205C330 195 315 185 295 185C268 185 250 195 240 215V185Z" fill="url(#hair)"/>
+
+  <!-- Eyebrows & Eyes -->
+  <path d="M260 196C265 194 272 195 276 198" stroke="#1E293B" stroke-width="2" stroke-linecap="round"/>
+  <path d="M294 198C298 195 305 194 310 196" stroke="#1E293B" stroke-width="2" stroke-linecap="round"/>
+  <ellipse cx="268" cy="206" rx="4" ry="4.5" fill="#0F172A"/>
+  <ellipse cx="302" cy="206" rx="4" ry="4.5" fill="#0F172A"/>
+  <circle cx="269" cy="204.5" r="1.5" fill="#FFFFFF"/>
+  <circle cx="303" cy="204.5" r="1.5" fill="#FFFFFF"/>
+
+  <!-- Small Bindi -->
+  <circle cx="285" cy="198" r="1.8" fill="#DC2626"/>
+
+  <!-- Nose -->
+  <path d="M284 208L281 218H287" stroke="#C27A45" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Smile -->
+  <path d="M274 228C280 235 290 235 296 228" stroke="#991B1B" stroke-width="2.2" stroke-linecap="round"/>
+
+  <!-- Small Earrings (Jhumka / Stud) -->
+  <circle cx="239" cy="222" r="3" fill="#F59E0B"/>
+  <circle cx="327" cy="222" r="3" fill="#F59E0B"/>
+
+  <!-- Clothing / Kurti (Blue with Teal Collar Dupatta) -->
+  <path d="M230 290C220 305 195 350 190 410H375C370 350 345 305 335 290C315 310 250 310 230 290Z" fill="url(#kurti)"/>
+  <path d="M250 290C260 325 305 325 315 290L295 380H270L250 290Z" fill="#2DC6B1"/>
+  <path d="M280 295V375" stroke="#FFFFFF" stroke-width="2" stroke-dasharray="3 3"/>
+
+  <!-- Right Hand holding Smartphone -->
+  <!-- Arm -->
+  <path d="M210 330C215 350 225 380 240 405L260 395C245 370 235 345 230 330L210 330Z" fill="url(#skin)"/>
+  <!-- Hand fingers holding phone -->
+  <rect x="238" y="340" width="34" height="62" rx="8" fill="#1E293B" transform="rotate(-15 238 340)" filter="url(#shadow)"/>
+  <rect x="242" y="344" width="28" height="52" rx="5" fill="#38BDF8" transform="rotate(-15 238 340)"/>
+  <!-- Phone Screen with Indian Scheme icon -->
+  <circle cx="260" cy="372" r="9" fill="#FFFFFF"/>
+  <path d="M256 372L259 375L265 369" stroke="#0284C7" stroke-width="2" stroke-linecap="round"/>
+  <!-- Thumb on phone -->
+  <ellipse cx="236" cy="365" rx="6" ry="9" fill="url(#skin)"/>
+
+  <!-- Floating Green Scheme Badge 2 (Right) -->
+  <g transform="translate(370, 240)" filter="url(#shadow)">
+    <rect width="64" height="64" rx="14" fill="#FFFFFF"/>
+    <rect x="14" y="14" width="36" height="36" rx="10" fill="#E5F8EA"/>
+    <path d="M25 32L30 37L39 27" stroke="#16A36A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
