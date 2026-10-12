@@ -8,6 +8,10 @@ import { Home, Layers, User, FolderArchive, FileText, Settings } from "lucide-re
 export const BottomNavigation: React.FC = () => {
   const pathname = usePathname();
 
+  if (pathname?.startsWith("/admin")) {
+    return null;
+  }
+
   const navItems = [
     {
       name: "Home\nDashboard",

@@ -27,11 +27,14 @@ def list_schemes():
             "category": "General",
         }
 
-        # Query all active schemes with their rules and document requirements
+        # Query only published, active schemes with their rules and document requirements
         query = db.query(Scheme).options(
             joinedload(Scheme.rules),
             joinedload(Scheme.document_requirements)
-        ).filter(Scheme.is_active == True)
+        ).filter(
+            Scheme.is_active == True,
+            (Scheme.status == "published") | (Scheme.status == None)
+        )
 
         if category_filter and category_filter != "all":
             query = query.filter(Scheme.category.ilike(f"%{category_filter}%"))
@@ -95,7 +98,8 @@ def get_scheme(scheme_id):
                 joinedload(Scheme.document_requirements)
             ).filter(Scheme.slug == scheme_id).first()
 
-        if not scheme:
+        # Reject if scheme is not found or not published
+        if not scheme or not scheme.is_active or (scheme.status and scheme.status != "published"):
             return jsonify({"error": f"Scheme '{scheme_id}' not found"}), 404
 
         # Evaluate against user profile
@@ -129,7 +133,10 @@ def match_schemes():
     db = SessionLocal()
     try:
         payload = request.get_json() or {}
-        schemes = db.query(Scheme).options(joinedload(Scheme.rules)).filter(Scheme.is_active == True).all()
+        schemes = db.query(Scheme).options(joinedload(Scheme.rules)).filter(
+            Scheme.is_active == True,
+            (Scheme.status == "published") | (Scheme.status == None)
+        ).all()
 
         matched = []
         for s in schemes:

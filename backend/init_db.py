@@ -9,6 +9,10 @@ logger = logging.getLogger(__name__)
 def create_database_if_not_exists():
     """Connect to default 'postgres' database and create 'yojana_hunter' if missing."""
     db_url = config.DATABASE_URL
+    if "sqlite" in db_url:
+        logger.info("SQLite database detected; skipping PostgreSQL maintenance check.")
+        return
+
     # Create connection URL pointing to default 'postgres' maintenance DB
     if "/yojana_hunter" in db_url:
         postgres_maintenance_url = db_url.replace("/yojana_hunter", "/postgres")

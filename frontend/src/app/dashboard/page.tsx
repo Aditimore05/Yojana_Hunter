@@ -20,46 +20,72 @@ import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
 import { getStoredProfile } from "@/lib/storage";
 import { demoCategoryDistribution, demoRecentActivities } from "@/data/demoData";
 import { UserProfile } from "@/types/profile";
+import { getSchemes } from "@/services/schemeService";
+import { Scheme } from "@/types/scheme";
 
 export default function DashboardPage() {
   const [profile, setProfile] = useState<UserProfile>(getStoredProfile());
   const [mounted, setMounted] = useState(false);
+  const [schemes, setSchemes] = useState<Scheme[]>([]);
+  const [counts, setCounts] = useState({ total: 12, eligible: 6, almost: 3, ineligible: 3 });
 
   useEffect(() => {
     setProfile(getStoredProfile());
     setMounted(true);
+
+    async function loadData() {
+      const data = await getSchemes();
+      if (data && data.length > 0) {
+        setSchemes(data);
+        setCounts({
+          total: data.length,
+          eligible: data.filter((s) => s.eligibilityStatus === "eligible").length,
+          almost: data.filter((s) => s.eligibilityStatus === "almost").length,
+          ineligible: data.filter((s) => s.eligibilityStatus === "ineligible").length,
+        });
+      }
+    }
+    loadData();
   }, []);
 
   const stats = [
-    { label: "Total Schemes Found", value: 12, color: "text-brand-blue", bg: "bg-blue-50/70 border-blue-100" },
-    { label: "Eligible", value: 6, color: "text-emerald-600", bg: "bg-emerald-50/70 border-emerald-100", icon: CheckCircle2 },
-    { label: "Almost Eligible", value: 3, color: "text-amber-600", bg: "bg-amber-50/70 border-amber-100", icon: AlertTriangle },
-    { label: "Not Eligible", value: 3, color: "text-rose-600", bg: "bg-rose-50/70 border-rose-100", icon: XCircle },
+    { label: "Total Schemes Found", value: counts.total, color: "text-brand-blue", bg: "bg-blue-50/70 border-blue-100" },
+    { label: "Eligible", value: counts.eligible, color: "text-emerald-600", bg: "bg-emerald-50/70 border-emerald-100", icon: CheckCircle2 },
+    { label: "Almost Eligible", value: counts.almost, color: "text-amber-600", bg: "bg-amber-50/70 border-amber-100", icon: AlertTriangle },
+    { label: "Not Eligible", value: counts.ineligible, color: "text-rose-600", bg: "bg-rose-50/70 border-rose-100", icon: XCircle },
   ];
 
-  const topOpportunities = [
-    {
-      id: "pm-vidyalakshmi",
-      name: "PM Vidyalakshmi Scheme",
-      match: "100% Match",
-      priority: "High Priority",
-      badgeColor: "bg-amber-50 text-amber-700 border-amber-200",
-    },
-    {
-      id: "post-matric-scholarship",
-      name: "Post Matric Scholarship",
-      match: "90% Match",
-      priority: "High Priority",
-      badgeColor: "bg-amber-50 text-amber-700 border-amber-200",
-    },
-    {
-      id: "skill-india-training",
-      name: "Skill India — Training Program",
-      match: "75% Match",
-      priority: "Medium Priority",
-      badgeColor: "bg-amber-50 text-amber-700 border-amber-200",
-    },
-  ];
+  const topOpportunities = schemes.length > 0
+    ? schemes.slice(0, 3).map((s) => ({
+        id: s.slug || s.id,
+        name: s.name,
+        match: `${s.matchScore || 100}% Match`,
+        priority: s.priority || "High Priority",
+        badgeColor: "bg-amber-50 text-amber-700 border-amber-200",
+      }))
+    : [
+        {
+          id: "pm-vidyalakshmi",
+          name: "PM Vidyalakshmi Scheme",
+          match: "100% Match",
+          priority: "High Priority",
+          badgeColor: "bg-amber-50 text-amber-700 border-amber-200",
+        },
+        {
+          id: "post-matric-scholarship",
+          name: "Post Matric Scholarship",
+          match: "90% Match",
+          priority: "High Priority",
+          badgeColor: "bg-amber-50 text-amber-700 border-amber-200",
+        },
+        {
+          id: "skill-india-training",
+          name: "Skill India — Training Program",
+          match: "75% Match",
+          priority: "Medium Priority",
+          badgeColor: "bg-amber-50 text-amber-700 border-amber-200",
+        },
+      ];
 
   const quickActions = [
     { title: "Continue Interview", href: "/interview", icon: Bot, color: "text-teal-600 bg-teal-50" },

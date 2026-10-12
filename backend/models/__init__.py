@@ -7,7 +7,7 @@ from database import Base
 
 # Gracefully handle pgvector if available, fallback to JSON for standard PostgreSQL
 try:
-    from pgvector.sqlalchemy import Vector
+    from pgvector.sqlalchemy import Vector  # type: ignore
     VectorColumnType = Vector(384)
 except Exception:
     VectorColumnType = JSON
@@ -146,8 +146,20 @@ class Scheme(Base):
     last_verified_date = Column(String(100), default="12 Oct 2026")
     priority = Column(String(50), default="High Priority")  # High Priority, Medium Priority, Low Priority
     deadline = Column(DateTime, nullable=True)
+    status = Column(String(50), default="draft", index=True)  # draft, published, archived
+    application_url = Column(String(500), nullable=True)
+    source_url = Column(String(500), nullable=True)
+    application_process = Column(Text, nullable=True)
+    age_min = Column(Integer, nullable=True)
+    age_max = Column(Integer, nullable=True)
+    income_max = Column(Float, nullable=True)
+    occupation = Column(String(200), nullable=True)
+    education = Column(String(200), nullable=True)
+    start_date = Column(DateTime, nullable=True)
+    end_date = Column(DateTime, nullable=True)
     is_active = Column(Boolean, default=True)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
     rules = relationship("SchemeRule", back_populates="scheme", cascade="all, delete-orphan")
     document_requirements = relationship("SchemeDocumentRequirement", back_populates="scheme", cascade="all, delete-orphan")
@@ -159,6 +171,7 @@ class Scheme(Base):
         data = {
             "id": self.slug,
             "numericId": self.id,
+            "slug": self.slug,
             "name": self.name,
             "shortDescription": self.short_description or (self.description[:120] + "..."),
             "description": self.description,
@@ -167,10 +180,24 @@ class Scheme(Base):
             "level": self.level or "Central Scheme",
             "state": self.state or "All India",
             "benefit": self.benefits,
+            "benefits": self.benefits,
             "officialUrl": self.official_source_url,
+            "applicationUrl": self.application_url or self.official_source_url,
+            "sourceUrl": self.source_url or self.official_source_url,
+            "applicationProcess": self.application_process or "",
             "lastVerifiedDate": self.last_verified_date or "12 Oct 2026",
             "priority": self.priority or "High Priority",
+            "status": self.status or ("published" if self.is_active else "draft"),
             "isActive": self.is_active,
+            "ageMin": self.age_min,
+            "ageMax": self.age_max,
+            "incomeMax": self.income_max,
+            "occupation": self.occupation,
+            "education": self.education,
+            "startDate": self.start_date.isoformat() if self.start_date else None,
+            "endDate": self.end_date.isoformat() if self.end_date else (self.deadline.isoformat() if self.deadline else None),
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+            "updatedAt": self.updated_at.isoformat() if self.updated_at else None,
             "requiredDocuments": [doc.document_name for doc in self.document_requirements] if self.document_requirements else [],
             "eligibilityStatus": "eligible",
             "matchScore": 100,

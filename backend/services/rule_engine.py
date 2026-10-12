@@ -121,13 +121,19 @@ class RuleEngine:
         Evaluates all rules for a scheme against user profile.
         Returns status, match_score, breakdown, and reason.
         """
-        if not rules:
+        if isinstance(rules, dict):
+            rule_items = rules.get("conditions", [])
+        else:
+            rule_items = list(rules) if rules else []
+
+        if not rule_items:
             return {
                 "status": "eligible",
                 "match_score": 100,
                 "passed_count": 0,
                 "total_count": 0,
                 "ineligible_reason": None,
+                "missing_fields": [],
                 "criteria": []
             }
 
@@ -135,20 +141,31 @@ class RuleEngine:
         passed_count = 0
         mandatory_failed = False
         missing_count = 0
+        missing_fields = []
         first_failure_reason = None
 
-        for idx, rule in enumerate(rules):
+        for idx, rule in enumerate(rule_items):
             # Rule can be a SchemeRule model object or dict
             rule_id = getattr(rule, "id", idx + 1)
-            rule_name = getattr(rule, "rule_name", None) or f"Criterion {idx + 1}"
-            rule_desc = getattr(rule, "rule_description", "")
-            rule_logic = getattr(rule, "rule_logic", {})
-            is_mandatory = getattr(rule, "is_mandatory", True)
+            rule_name = getattr(rule, "rule_name", None) or (rule.get("name") if isinstance(rule, dict) else f"Criterion {idx + 1}")
+            rule_desc = getattr(rule, "rule_description", "") or (rule.get("description", "") if isinstance(rule, dict) else "")
+            
+            if isinstance(rule, dict) and "op" in rule and "field" in rule:
+                rule_logic = rule
+                if not rule_desc:
+                    rule_desc = f"{rule.get('field')} {rule.get('op')} {rule.get('value')}"
+                is_mandatory = rule.get("is_mandatory", True)
+            else:
+                rule_logic = getattr(rule, "rule_logic", rule if isinstance(rule, dict) else {})
+                is_mandatory = getattr(rule, "is_mandatory", rule.get("is_mandatory", True) if isinstance(rule, dict) else True)
 
             passed, reason, user_value = cls.evaluate_condition(rule_logic, profile)
 
             if user_value is None:
                 missing_count += 1
+                f_name = rule_logic.get("field")
+                if f_name:
+                    missing_fields.append(f_name)
 
             if not passed:
                 if is_mandatory:
@@ -166,9 +183,12 @@ class RuleEngine:
                 "passed": passed
             })
 
-        total = len(rules)
+        total = len(rule_items)
 
-        if missing_count > 0 and (passed_count + missing_count == total):
+        if missing_fields and (passed_count + len(missing_fields) == total) and passed_count == 0:
+            status = "needs_info"
+            match_score = 50
+        elif missing_count > 0 and (passed_count + missing_count == total):
             status = "almost"
             match_score = max(50, int((passed_count / total) * 100))
         elif mandatory_failed:
@@ -187,5 +207,6 @@ class RuleEngine:
             "passed_count": passed_count,
             "total_count": total,
             "ineligible_reason": first_failure_reason,
+            "missing_fields": missing_fields,
             "criteria": breakdown
         }

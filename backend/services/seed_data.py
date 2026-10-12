@@ -339,10 +339,16 @@ def seed_database():
                     official_source_url=s_data["official_source_url"],
                     last_verified_date=s_data["last_verified_date"],
                     priority=s_data["priority"],
-                    state=s_data["state"]
+                    state=s_data["state"],
+                    status="published",
+                    is_active=True
                 )
                 db.add(scheme)
                 db.flush()
+            else:
+                if not scheme.status:
+                    scheme.status = "published"
+                    scheme.is_active = True
 
                 # Add Rules
                 for r in s_data["rules"]:

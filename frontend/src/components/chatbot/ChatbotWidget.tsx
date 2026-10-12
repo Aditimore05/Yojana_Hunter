@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { 
   MessageSquare, 
   X, 
@@ -25,7 +26,12 @@ interface Message {
 }
 
 export const ChatbotWidget: React.FC = () => {
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+
+  if (pathname?.startsWith("/admin")) {
+    return null;
+  }
   const [language, setLanguage] = useState<"en" | "hi" | "mr">("en");
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
