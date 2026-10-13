@@ -14,8 +14,9 @@ import {
 } from "lucide-react";
 import { fetchDocuments, uploadCitizenDocument, calculateReadiness } from "@/services/documentService";
 import { CitizenDocument, DocumentReadinessStats } from "@/types/document";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
-export default function DocumentReadinessPage() {
+function DocumentReadinessContent() {
   const [documents, setDocuments] = useState<CitizenDocument[]>([]);
   const [stats, setStats] = useState<DocumentReadinessStats>({
     readyPercent: 78,
@@ -220,5 +221,13 @@ export default function DocumentReadinessPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function DocumentReadinessPage() {
+  return (
+    <ProtectedRoute>
+      <DocumentReadinessContent />
+    </ProtectedRoute>
   );
 }

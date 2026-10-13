@@ -33,6 +33,8 @@ class User(Base):
     documents = relationship("UserDocument", back_populates="user")
     applications = relationship("Application", back_populates="user")
     interview_sessions = relationship("InterviewSession", back_populates="user")
+    saved_schemes = relationship("SavedScheme", back_populates="user", cascade="all, delete-orphan")
+    password_resets = relationship("PasswordResetToken", back_populates="user", cascade="all, delete-orphan")
 
     def to_dict(self):
         return {
@@ -63,6 +65,15 @@ class Profile(Base):
     date_of_birth = Column(String(50), nullable=True)
     land_holding_acres = Column(Float, default=0.0)
     is_disabled = Column(Boolean, default=False)
+    is_farmer = Column(Boolean, default=False)
+    is_student = Column(Boolean, default=False)
+    course = Column(String(150), nullable=True)
+    institution = Column(String(255), nullable=True)
+    has_business = Column(Boolean, default=False)
+    business_type = Column(String(150), nullable=True)
+    disability_type = Column(String(150), nullable=True)
+    is_tax_payer = Column(Boolean, default=False)
+    is_govt_employee = Column(Boolean, default=False)
     preferred_language = Column(String(20), default="en")
     completeness_percent = Column(Integer, default=0)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
@@ -88,6 +99,15 @@ class Profile(Base):
             "dateOfBirth": self.date_of_birth or "",
             "landHoldingAcres": self.land_holding_acres,
             "isDisabled": self.is_disabled,
+            "isFarmer": self.is_farmer or False,
+            "isStudent": self.is_student or False,
+            "course": self.course or "",
+            "institution": self.institution or "",
+            "hasBusiness": self.has_business or False,
+            "businessType": self.business_type or "",
+            "disabilityType": self.disability_type or "",
+            "isTaxPayer": self.is_tax_payer or False,
+            "isGovtEmployee": self.is_govt_employee or False,
             "language": self.preferred_language or "en",
             "completenessPercent": self.completeness_percent or 0,
             "updatedAt": self.updated_at.isoformat() if self.updated_at else None,
@@ -147,6 +167,7 @@ class Scheme(Base):
     priority = Column(String(50), default="High Priority")  # High Priority, Medium Priority, Low Priority
     deadline = Column(DateTime, nullable=True)
     status = Column(String(50), default="draft", index=True)  # draft, published, archived
+    application_status = Column(String(50), default="open", index=True)  # open, closing_soon, closed, upcoming
     application_url = Column(String(500), nullable=True)
     source_url = Column(String(500), nullable=True)
     application_process = Column(Text, nullable=True)
@@ -155,9 +176,21 @@ class Scheme(Base):
     income_max = Column(Float, nullable=True)
     occupation = Column(String(200), nullable=True)
     education = Column(String(200), nullable=True)
+    gender = Column(String(50), default="All")  # All, Female, Male, Transgender
+    social_category = Column(String(100), default="All")  # All, SC, ST, OBC, General, Minority
+    is_farmer_only = Column(Boolean, default=False)
+    max_landholding_acres = Column(Float, nullable=True)
+    is_student_only = Column(Boolean, default=False)
+    is_business_only = Column(Boolean, default=False)
+    is_disability_required = Column(Boolean, default=False)
+    exclusions = Column(JSON, nullable=True)  # List of strings e.g. ["Income tax payer"]
     start_date = Column(DateTime, nullable=True)
     end_date = Column(DateTime, nullable=True)
-    is_active = Column(Boolean, default=True)
+    is_active = Column(Boolean, default=True, index=True)
+    source_verification_status = Column(String(100), default="verified_live")
+    last_fetched_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_by_admin_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    updated_by_admin_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
@@ -184,16 +217,29 @@ class Scheme(Base):
             "officialUrl": self.official_source_url,
             "applicationUrl": self.application_url or self.official_source_url,
             "sourceUrl": self.source_url or self.official_source_url,
+            "sourceVerificationStatus": self.source_verification_status or "verified_live",
+            "lastFetchedAt": self.last_fetched_at.isoformat() if self.last_fetched_at else None,
             "applicationProcess": self.application_process or "",
             "lastVerifiedDate": self.last_verified_date or "12 Oct 2026",
             "priority": self.priority or "High Priority",
             "status": self.status or ("published" if self.is_active else "draft"),
+            "applicationStatus": self.application_status or "open",
             "isActive": self.is_active,
             "ageMin": self.age_min,
             "ageMax": self.age_max,
             "incomeMax": self.income_max,
             "occupation": self.occupation,
             "education": self.education,
+            "gender": self.gender or "All",
+            "socialCategory": self.social_category or "All",
+            "isFarmerOnly": bool(self.is_farmer_only),
+            "maxLandholdingAcres": self.max_landholding_acres,
+            "isStudentOnly": bool(self.is_student_only),
+            "isBusinessOnly": bool(self.is_business_only),
+            "isDisabilityRequired": bool(self.is_disability_required),
+            "exclusions": self.exclusions or [],
+            "createdByAdminId": self.created_by_admin_id,
+            "updatedByAdminId": self.updated_by_admin_id,
             "startDate": self.start_date.isoformat() if self.start_date else None,
             "endDate": self.end_date.isoformat() if self.end_date else (self.deadline.isoformat() if self.deadline else None),
             "createdAt": self.created_at.isoformat() if self.created_at else None,
@@ -313,6 +359,31 @@ class SavedScheme(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     scheme_id = Column(Integer, ForeignKey("schemes.id"), nullable=False)
     saved_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    user = relationship("User", back_populates="saved_schemes")
+    scheme = relationship("Scheme")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "userId": self.user_id,
+            "schemeId": self.scheme_id,
+            "savedAt": self.saved_at.isoformat() if self.saved_at else None,
+        }
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    token_hash = Column(String(255), unique=True, index=True, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    used = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    user = relationship("User", back_populates="password_resets")
+
+    def is_valid(self):
+        return (not self.used) and (self.expires_at > datetime.datetime.utcnow())
 
 # ==========================================
 # 4. DOCUMENTS & APPLICATION DOMAIN

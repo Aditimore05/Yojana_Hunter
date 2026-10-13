@@ -222,6 +222,9 @@ def admin_list_schemes():
         category = request.args.get("category", "").strip()
         state = request.args.get("state", "").strip()
         status = request.args.get("status", "").strip().lower()
+        department = request.args.get("department", "").strip()
+        level = request.args.get("level", "").strip()
+        app_status = (request.args.get("application_status") or request.args.get("applicationStatus") or "").strip().lower()
 
         query = db.query(Scheme).options(
             joinedload(Scheme.rules),
@@ -241,8 +244,17 @@ def admin_list_schemes():
         if state and state.lower() != "all":
             query = query.filter(Scheme.state.ilike(f"%{state}%"))
 
+        if department and department.lower() != "all":
+            query = query.filter(Scheme.department.ilike(f"%{department}%"))
+
+        if level and level.lower() != "all":
+            query = query.filter(Scheme.level.ilike(f"%{level}%"))
+
         if status and status != "all":
             query = query.filter(Scheme.status == status)
+
+        if app_status and app_status != "all":
+            query = query.filter(Scheme.application_status == app_status)
 
         query = query.order_by(Scheme.updated_at.desc())
         schemes = query.all()
@@ -329,6 +341,7 @@ def admin_create_scheme():
             source_url=source_url or None,
             application_process=(data.get("applicationProcess") or data.get("application_process") or "").strip() or None,
             status=status,
+            application_status=(data.get("applicationStatus") or data.get("application_status") or "open").strip().lower(),
             is_active=is_active,
             priority=(data.get("priority") or "High Priority").strip(),
             age_min=int(data["ageMin"]) if data.get("ageMin") is not None and str(data.get("ageMin")).isdigit() else None,
@@ -336,6 +349,16 @@ def admin_create_scheme():
             income_max=float(data["incomeMax"]) if data.get("incomeMax") not in (None, "") else None,
             occupation=(data.get("occupation") or "").strip() or None,
             education=(data.get("education") or "").strip() or None,
+            gender=(data.get("gender") or "All").strip(),
+            social_category=(data.get("socialCategory") or data.get("social_category") or "All").strip(),
+            is_farmer_only=bool(data.get("isFarmerOnly") or data.get("is_farmer_only")),
+            max_landholding_acres=float(data["maxLandholdingAcres"]) if data.get("maxLandholdingAcres") not in (None, "") else None,
+            is_student_only=bool(data.get("isStudentOnly") or data.get("is_student_only")),
+            is_business_only=bool(data.get("isBusinessOnly") or data.get("is_business_only")),
+            is_disability_required=bool(data.get("isDisabilityRequired") or data.get("is_disability_required")),
+            exclusions=data.get("exclusions") if isinstance(data.get("exclusions"), list) else ([x.strip() for x in str(data.get("exclusions") or "").split(",") if x.strip()] if data.get("exclusions") else []),
+            created_by_admin_id=getattr(g, "admin_user_id", None),
+            updated_by_admin_id=getattr(g, "admin_user_id", None),
             start_date=parse_date(data.get("startDate") or data.get("start_date")),
             end_date=parse_date(data.get("endDate") or data.get("end_date") or data.get("deadline")),
             last_verified_date=datetime.datetime.now(datetime.timezone.utc).strftime("%d %b %Y"),
@@ -555,6 +578,30 @@ def admin_update_scheme(scheme_id: str):
         if "endDate" in data or "end_date" in data:
             scheme.end_date = parse_date(data.get("endDate") or data.get("end_date"))
 
+        if "applicationStatus" in data or "application_status" in data:
+            scheme.application_status = (data.get("applicationStatus") or data.get("application_status") or "open").strip().lower()
+        if "gender" in data:
+            scheme.gender = data["gender"].strip()
+        if "socialCategory" in data or "social_category" in data:
+            scheme.social_category = (data.get("socialCategory") or data.get("social_category") or "All").strip()
+        if "isFarmerOnly" in data or "is_farmer_only" in data:
+            scheme.is_farmer_only = bool(data.get("isFarmerOnly") or data.get("is_farmer_only"))
+        if "maxLandholdingAcres" in data or "max_landholding_acres" in data:
+            val = data.get("maxLandholdingAcres") or data.get("max_landholding_acres")
+            scheme.max_landholding_acres = float(val) if val not in (None, "") else None
+        if "isStudentOnly" in data or "is_student_only" in data:
+            scheme.is_student_only = bool(data.get("isStudentOnly") or data.get("is_student_only"))
+        if "isBusinessOnly" in data or "is_business_only" in data:
+            scheme.is_business_only = bool(data.get("isBusinessOnly") or data.get("is_business_only"))
+        if "isDisabilityRequired" in data or "is_disability_required" in data:
+            scheme.is_disability_required = bool(data.get("isDisabilityRequired") or data.get("is_disability_required"))
+        if "exclusions" in data:
+            excl = data["exclusions"]
+            scheme.exclusions = excl if isinstance(excl, list) else ([x.strip() for x in str(excl).split(",") if x.strip()] if excl else [])
+        if "isActive" in data or "is_active" in data:
+            scheme.is_active = bool(data.get("isActive") if "isActive" in data else data.get("is_active"))
+
+        scheme.updated_by_admin_id = getattr(g, "admin_user_id", None)
         scheme.updated_at = datetime.datetime.now(datetime.timezone.utc)
         scheme.last_verified_date = datetime.datetime.now(datetime.timezone.utc).strftime("%d %b %Y")
 
@@ -694,3 +741,51 @@ def admin_delete_scheme(scheme_id: str):
         return jsonify({"error": "Failed to delete scheme", "message": str(e)}), 500
     finally:
         db.close()
+
+
+@admin_bp.route("/schemes/<string:scheme_id>/toggle-active", methods=["PATCH"])
+@admin_required
+def admin_toggle_scheme_active(scheme_id: str):
+    """
+    PATCH /api/admin/schemes/<scheme_id>/toggle-active
+    Explicitly activates or deactivates a scheme.
+    """
+    data = request.get_json() or {}
+    db = SessionLocal()
+    try:
+        scheme = None
+        if scheme_id.isdigit():
+            scheme = db.query(Scheme).filter(Scheme.id == int(scheme_id)).first()
+        if not scheme:
+            scheme = db.query(Scheme).filter(Scheme.slug == scheme_id).first()
+
+        if not scheme:
+            return jsonify({
+                "error": "Not Found",
+                "message": f"Scheme '{scheme_id}' was not found.",
+                "status_code": 404
+            }), 404
+
+        if "isActive" in data or "is_active" in data:
+            scheme.is_active = bool(data.get("isActive") if "isActive" in data else data.get("is_active"))
+        else:
+            scheme.is_active = not scheme.is_active
+
+        scheme.updated_at = datetime.datetime.now(datetime.timezone.utc)
+        db.commit()
+        db.refresh(scheme)
+
+        state_str = "activated" if scheme.is_active else "deactivated"
+        return jsonify({
+            "message": f"Scheme '{scheme.name}' {state_str} successfully.",
+            "isActive": scheme.is_active,
+            "status": scheme.status,
+            "scheme": scheme.to_dict(include_rules=False)
+        }), 200
+
+    except Exception as e:
+        db.rollback()
+        return jsonify({"error": "Failed to toggle active state", "message": str(e)}), 500
+    finally:
+        db.close()
+

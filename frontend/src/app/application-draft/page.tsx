@@ -6,8 +6,9 @@ import { Download, Edit3, CheckCircle2, ShieldCheck, X, Save, FileText } from "l
 import jsPDF from "jspdf";
 import { fetchApplicationDraft, updateApplicationDraft } from "@/services/applicationService";
 import { ApplicationDraft } from "@/types/application";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
-export default function ApplicationDraftPage() {
+function ApplicationDraftContent() {
   const [draft, setDraft] = useState<ApplicationDraft>(fetchApplicationDraft());
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<ApplicationDraft>(fetchApplicationDraft());
@@ -348,5 +349,13 @@ export default function ApplicationDraftPage() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function ApplicationDraftPage() {
+  return (
+    <ProtectedRoute>
+      <ApplicationDraftContent />
+    </ProtectedRoute>
   );
 }

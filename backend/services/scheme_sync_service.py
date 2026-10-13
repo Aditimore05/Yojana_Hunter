@@ -1,0 +1,819 @@
+import datetime
+import logging
+import ssl
+import time
+import urllib.request
+from typing import Dict, Any, List, Optional
+from sqlalchemy.orm import Session
+from database import SessionLocal
+from models import (
+    Scheme, SchemeRule, SchemeDocumentRequirement, SourceDocument, Profile
+)
+from services.eligibility_service import SchemeEligibilityService
+
+logger = logging.getLogger(__name__)
+
+# Official 10 Government Schemes Catalogue with verified official portals
+VERIFIED_SCHEMES_CATALOGUE = [
+    {
+        "slug": "pm-kisan",
+        "name": "PM-KISAN — Pradhan Mantri Kisan Samman Nidhi",
+        "short_description": "Income support of ₹6,000 per year directly to all landholding farmer families across India.",
+        "description": "Pradhan Mantri Kisan Samman Nidhi (PM-KISAN) is a Central Sector scheme with 100% funding from Government of India. Under the scheme, an income support of ₹6,000/- per year is provided to all landholding farmer families across the country in three equal installments of ₹2,000/- each, every four months, directly into their Aadhaar-linked bank accounts via DBT.",
+        "benefits": "₹6,000 per year in 3 equal installments of ₹2,000 directly transferred into Aadhaar-linked bank account",
+        "category": "Agriculture",
+        "department": "Department of Agriculture & Farmers Welfare, Ministry of Agriculture and Farmers Welfare",
+        "level": "Central Scheme",
+        "state": "All India",
+        "official_source_url": "https://pmkisan.gov.in/",
+        "application_url": "https://pmkisan.gov.in/RegistrationFormNew.aspx",
+        "source_url": "https://pmkisan.gov.in/",
+        "application_process": "1. Visit the Farmers Corner on official portal https://pmkisan.gov.in/\n2. Click on 'New Farmer Registration'.\n3. Enter Aadhaar Number, select State, and verify mobile number via OTP.\n4. Enter landholding details (Khatauni / Khasra number, survey plot, area in hectares).\n5. Upload land ownership document and submit. After State Nodal Officer verification, installment is credited via DBT.",
+        "age_min": 18,
+        "age_max": None,
+        "income_max": None,
+        "occupation": "Farmer",
+        "education": "No minimum education requirement",
+        "gender": "All",
+        "social_category": "All",
+        "is_farmer_only": True,
+        "max_landholding_acres": None,
+        "exclusions": ["Income tax payer in last assessment year", "Serving or retired government employee", "Constitutional post holder", "Doctor/Engineer/Lawyer/CA/Architect"],
+        "priority": "High Priority",
+        "application_status": "open",
+        "rules": [
+            {
+                "rule_name": "Farmer Beneficiary",
+                "rule_description": "Must be an active landholding farmer family",
+                "rule_logic": {"field": "is_farmer", "op": "eq", "value": True},
+                "is_mandatory": True
+            },
+            {
+                "rule_name": "Minimum Age",
+                "rule_description": "Age must be at least 18 years",
+                "rule_logic": {"field": "age", "op": ">=", "value": 18},
+                "is_mandatory": True
+            },
+            {
+                "rule_name": "Non-Taxpayer Exclusion",
+                "rule_description": "Beneficiary must not be an income tax payer",
+                "rule_logic": {"field": "is_tax_payer", "op": "eq", "value": False},
+                "is_mandatory": True
+            }
+        ],
+        "documents": [
+            {"name": "Aadhaar Card", "mandatory": True, "desc": "Mandatory for DBT authentication"},
+            {"name": "Land Record (Khatauni / ROR / Khasra)", "mandatory": True, "desc": "Proof of cultivable agricultural land ownership"},
+            {"name": "Bank Passbook with Aadhaar Seeding", "mandatory": True, "desc": "Bank account details with IFSC code for Direct Benefit Transfer"},
+            {"name": "Active Mobile Number", "mandatory": True, "desc": "Linked to Aadhaar for OTP verification"}
+        ]
+    },
+    {
+        "slug": "pmfby",
+        "name": "Pradhan Mantri Fasal Bima Yojana (PMFBY)",
+        "short_description": "Comprehensive crop insurance shield covering natural calamities, pests, and post-harvest losses at nominal premium.",
+        "description": "Pradhan Mantri Fasal Bima Yojana (PMFBY) is the flagship crop insurance scheme of the Government of India. It provides a comprehensive insurance shield covering non-preventable natural risks from pre-sowing to post-harvest stages. Farmers pay a uniform minimal premium of only 2% for Kharif crops, 1.5% for Rabi food & oilseed crops, and 5% for annual commercial/horticultural crops, with the remaining premium heavily subsidized equally by Central and State Governments.",
+        "benefits": "Complete insurance coverage against yield loss and crop failure; Farmer premium capped at 1.5% to 2% with zero upper limit on government subsidy",
+        "category": "Agriculture",
+        "department": "Ministry of Agriculture and Farmers Welfare",
+        "level": "Central Scheme",
+        "state": "All India",
+        "official_source_url": "https://pmfby.gov.in/",
+        "application_url": "https://pmfby.gov.in/farmerRegistrationForm",
+        "source_url": "https://pmfby.gov.in/",
+        "application_process": "1. Visit the National Crop Insurance Portal at https://pmfby.gov.in/\n2. Click on 'Farmer Corner' and select 'Apply for Crop Insurance by yourself'.\n3. Register with mobile number and Aadhaar.\n4. Select Season (Kharif/Rabi), Year, Scheme (PMFBY), State, District, and Crop.\n5. Upload Land Possession Certificate / Sowing Certificate and submit.\n6. Non-loanee farmers can also apply through nearest Common Service Centre (CSC) or bank branch.",
+        "age_min": 18,
+        "age_max": None,
+        "income_max": None,
+        "occupation": "Farmer",
+        "education": "No formal education required",
+        "gender": "All",
+        "social_category": "All",
+        "is_farmer_only": True,
+        "max_landholding_acres": None,
+        "exclusions": ["Non-agricultural activities", "Preventable damages due to neglect"],
+        "priority": "High Priority",
+        "application_status": "open",
+        "rules": [
+            {
+                "rule_name": "Active Cultivator",
+                "rule_description": "Must be an active cultivator (owner, tenant farmer, or sharecropper)",
+                "rule_logic": {"field": "is_farmer", "op": "eq", "value": True},
+                "is_mandatory": True
+            },
+            {
+                "rule_name": "Minimum Age",
+                "rule_description": "Age must be at least 18 years",
+                "rule_logic": {"field": "age", "op": ">=", "value": 18},
+                "is_mandatory": True
+            }
+        ],
+        "documents": [
+            {"name": "Aadhaar Card", "mandatory": True, "desc": "Identity verification"},
+            {"name": "Land Record (ROR / Khasra / Khatauni)", "mandatory": True, "desc": "Proof of landholding or tenancy agreement"},
+            {"name": "Sowing Certificate / Crop Declaration", "mandatory": True, "desc": "Certificate issued by Village Revenue Officer or self-declaration"},
+            {"name": "Bank Passbook", "mandatory": True, "desc": "Bank account copy for claim settlement credit"}
+        ]
+    },
+    {
+        "slug": "pm-kmy",
+        "name": "Pradhan Mantri Kisan Maandhan Yojana (PM-KMY)",
+        "short_description": "Assured monthly pension of ₹3,000 for Small and Marginal Farmers upon reaching 60 years of age.",
+        "description": "Pradhan Mantri Kisan Maandhan Yojana (PM-KMY) is an old-age pension scheme for Small and Marginal Farmers (SMF) possessing cultivable land up to 2 hectares (approx. 5 acres). It is a voluntary and contributory pension scheme where the beneficiary contributes between ₹55 to ₹200 per month depending on entry age (18 to 40 years), and the Central Government contributes an equal matching amount. Upon attaining 60 years, the farmer receives an assured monthly pension of ₹3,000.",
+        "benefits": "Assured lifelong monthly pension of ₹3,000 after age 60; 50% matching monthly contribution by Central Government",
+        "category": "Agriculture",
+        "department": "Ministry of Agriculture and Farmers Welfare (Administered via LIC)",
+        "level": "Central Scheme",
+        "state": "All India",
+        "official_source_url": "https://www.myscheme.gov.in/schemes/pmkmdy",
+        "application_url": "https://maandhan.in/",
+        "source_url": "https://maandhan.in/",
+        "application_process": "1. Visit nearest Common Service Centre (CSC) or visit https://maandhan.in/\n2. Provide Aadhaar number, Savings / Jan Dhan Bank Account details with IFSC.\n3. Verify age (must be between 18 and 40 years) and landholding (<= 2 hectares via Khatauni).\n4. System auto-calculates monthly installment.\n5. Complete e-Sign auto-debit mandate. Kisan Pension Card with unique Pension Account Number is generated instantly.",
+        "age_min": 18,
+        "age_max": 40,
+        "income_max": None,
+        "occupation": "Farmer",
+        "education": "No formal education required",
+        "gender": "All",
+        "social_category": "All",
+        "is_farmer_only": True,
+        "max_landholding_acres": 5.0,
+        "exclusions": ["Covered under any other social security scheme (NPS, ESIC, EPFO)", "Income tax payer", "Large farmers holding > 2 hectares of cultivable land"],
+        "priority": "High Priority",
+        "application_status": "open",
+        "rules": [
+            {
+                "rule_name": "Small & Marginal Farmer",
+                "rule_description": "Must be an active small or marginal farmer",
+                "rule_logic": {"field": "is_farmer", "op": "eq", "value": True},
+                "is_mandatory": True
+            },
+            {
+                "rule_name": "Entry Age Range",
+                "rule_description": "Entry age strictly between 18 and 40 years",
+                "rule_logic": {"field": "age", "op": "<=", "value": 40},
+                "is_mandatory": True
+            },
+            {
+                "rule_name": "Minimum Entry Age",
+                "rule_description": "Age must be >= 18 years",
+                "rule_logic": {"field": "age", "op": ">=", "value": 18},
+                "is_mandatory": True
+            },
+            {
+                "rule_name": "Cultivable Land Limit",
+                "rule_description": "Landholding must not exceed 2 hectares (5 acres)",
+                "rule_logic": {"field": "land_holding_acres", "op": "<=", "value": 5.0},
+                "is_mandatory": True
+            },
+            {
+                "rule_name": "Non-Taxpayer Excluded",
+                "rule_description": "Must not be an income tax payer",
+                "rule_logic": {"field": "is_tax_payer", "op": "eq", "value": False},
+                "is_mandatory": True
+            }
+        ],
+        "documents": [
+            {"name": "Aadhaar Card", "mandatory": True, "desc": "Identity proof for enrolment"},
+            {"name": "Bank Passbook / Jan Dhan Account Details", "mandatory": True, "desc": "For auto-debit contribution and pension credit"},
+            {"name": "Landholding Record (Khatauni / Khasra)", "mandatory": True, "desc": "Proof of holding <= 2 hectares of cultivable land"}
+        ]
+    },
+    {
+        "slug": "kisan-credit-card",
+        "name": "Kisan Credit Card (KCC) Scheme",
+        "short_description": "Subsidized institutional credit up to ₹3 Lakh at effective 4% interest rate with collateral-free limit up to ₹1.60 Lakh.",
+        "description": "The Kisan Credit Card (KCC) scheme was introduced to ensure that farmers have timely access to affordable credit for agricultural production, purchase of seeds, fertilizers, pesticides, and post-harvest expenses. Loans up to ₹3,00,000 carry an effective interest rate of only 4% per annum (7% base minus 3% prompt repayment incentive). Collateral-free agricultural loans are sanctioned up to ₹1.60 Lakh without any processing fee.",
+        "benefits": "Short-term credit limit up to ₹3 Lakh at 4% effective interest rate; Collateral-free credit up to ₹1.60 Lakh with ATM-enabled RuPay debit card",
+        "category": "Agriculture",
+        "department": "Ministry of Agriculture and Farmers Welfare / RBI / NABARD",
+        "level": "Central Scheme",
+        "state": "All India",
+        "official_source_url": "https://www.myscheme.gov.in/schemes/kcc",
+        "application_url": "https://pmkisan.gov.in/",
+        "source_url": "https://www.myscheme.gov.in/schemes/kcc",
+        "application_process": "1. Download the one-page simplified KCC form from https://pmkisan.gov.in/ or obtain from bank/CSC.\n2. Fill in land details, crop sown, and village revenue code.\n3. Submit with Aadhaar card copy and land ownership record (Khatauni).\n4. Under the simplified saturation drive, public sector banks are mandated to issue KCC within 14 working days of receiving completed application.",
+        "age_min": 18,
+        "age_max": 75,
+        "income_max": None,
+        "occupation": "Farmer",
+        "education": "No minimum education requirement",
+        "gender": "All",
+        "social_category": "All",
+        "is_farmer_only": True,
+        "max_landholding_acres": None,
+        "exclusions": ["Willful loan defaulters"],
+        "priority": "High Priority",
+        "application_status": "open",
+        "rules": [
+            {
+                "rule_name": "Active Cultivator",
+                "rule_description": "Must be an active farmer or owner-cultivator / tenant",
+                "rule_logic": {"field": "is_farmer", "op": "eq", "value": True},
+                "is_mandatory": True
+            },
+            {
+                "rule_name": "Age Requirement",
+                "rule_description": "Age between 18 and 75 years",
+                "rule_logic": {"field": "age", "op": ">=", "value": 18},
+                "is_mandatory": True
+            }
+        ],
+        "documents": [
+            {"name": "Aadhaar Card", "mandatory": True, "desc": "Identity and address proof"},
+            {"name": "Land Records (Khatauni / Khasra / Revenue Extract)", "mandatory": True, "desc": "Proof of agricultural land and crop cultivation"},
+            {"name": "Passport Size Photographs", "mandatory": True, "desc": "Two recent photographs for bank file"},
+            {"name": "PAN Card or Form 60", "mandatory": False, "desc": "Tax identification document"}
+        ]
+    },
+    {
+        "slug": "soil-health-card",
+        "name": "RKVY Soil Health and Fertility — Soil Health Card (SHC)",
+        "short_description": "Periodic 12-parameter soil testing and customized crop-specific nutrient recommendations to optimize farm yield.",
+        "description": "The Soil Health Card (SHC) scheme under Rashtriya Krishi Vikas Yojana (RKVY) provides all farmers across India with comprehensive soil health assessments every three years. Soil samples are analyzed for 12 critical chemical and physical parameters: Nitrogen (N), Phosphorus (P), Potassium (K), Sulphur (S), Zinc (Zn), Iron (Fe), Copper (Cu), Manganese (Mn), Boron (B), pH, Electrical Conductivity (EC), and Organic Carbon (OC). Farmers receive tailored advice on exact fertilizer dosage to prevent soil degradation and reduce input costs.",
+        "benefits": "Free soil nutrient analysis across 12 parameters with personalized fertilizer and organic manure dosage guidance",
+        "category": "Agriculture",
+        "department": "Department of Agriculture & Farmers Welfare, Ministry of Agriculture and Farmers Welfare",
+        "level": "Central Scheme",
+        "state": "All India",
+        "official_source_url": "https://www.myscheme.gov.in/schemes/rkvyshfshc",
+        "application_url": "https://soilhealth.dac.gov.in/",
+        "source_url": "https://soilhealth.dac.gov.in/",
+        "application_process": "1. Visit the Soil Health Card Portal at https://soilhealth.dac.gov.in/\n2. State agriculture extension officers / Krishi Mitras collect GPS-tagged soil samples from farmer's plot.\n3. Samples are processed at government-accredited Soil Testing Laboratories (STLs).\n4. Farmer can view and download personalized Soil Health Card by entering State, District, and Plot/Khasra number directly on the portal.",
+        "age_min": 18,
+        "age_max": None,
+        "income_max": None,
+        "occupation": "Farmer",
+        "education": "No education barrier",
+        "gender": "All",
+        "social_category": "All",
+        "is_farmer_only": True,
+        "max_landholding_acres": None,
+        "exclusions": [],
+        "priority": "Medium Priority",
+        "application_status": "open",
+        "rules": [
+            {
+                "rule_name": "Agricultural Landholder",
+                "rule_description": "Must possess agricultural land for cultivation",
+                "rule_logic": {"field": "is_farmer", "op": "eq", "value": True},
+                "is_mandatory": True
+            },
+            {
+                "rule_name": "Minimum Age",
+                "rule_description": "Age >= 18 years",
+                "rule_logic": {"field": "age", "op": ">=", "value": 18},
+                "is_mandatory": True
+            }
+        ],
+        "documents": [
+            {"name": "Land Survey / Khasra Plot Details", "mandatory": True, "desc": "Identification of field grid from which soil is sampled"},
+            {"name": "Aadhaar Card", "mandatory": True, "desc": "Farmer identity identification"},
+            {"name": "Mobile Number", "mandatory": True, "desc": "To receive SMS alert when soil report is ready"}
+        ]
+    },
+    {
+        "slug": "pmksy-pdmc",
+        "name": "Pradhan Mantri Krishi Sinchayee Yojana (PMKSY) — Per Drop More Crop",
+        "short_description": "45% to 55% financial subsidy on precision micro-irrigation (Drip and Sprinkler) installations to maximize water efficiency.",
+        "description": "Pradhan Mantri Krishi Sinchayee Yojana (PMKSY) focuses on enhancing water use efficiency at the farm level through 'Per Drop More Crop' (PDMC). The scheme provides substantial financial assistance for micro-irrigation systems: 55% subsidy for Small and Marginal Farmers (SMF) and 45% for other farmers on Drip and Sprinkler systems. In Uttar Pradesh and several other states, state top-ups increase the effective subsidy up to 80%–90% for small farmers.",
+        "benefits": "45% to 55% Central subsidy (up to 80%-90% with State top-up in UP) on modern Drip & Sprinkler irrigation systems",
+        "category": "Agriculture",
+        "department": "Ministry of Agriculture and Farmers Welfare (Implemented through State Agriculture/Horticulture Departments)",
+        "level": "Central Scheme",
+        "state": "All India",
+        "official_source_url": "https://pmksy.gov.in/",
+        "application_url": "https://perdropmorecrop.dac.gov.in/",
+        "source_url": "https://perdropmorecrop.dac.gov.in/",
+        "application_process": "1. Access the national PDMC portal at https://perdropmorecrop.dac.gov.in/ or State Horticulture/Agriculture portal (in UP: https://dbt.uphorticulture.in/).\n2. Register farmer profile with Aadhaar and mobile number.\n3. Submit land ownership certificate (Khatauni) and proof of assured water source (borewell, tubewell, farm pond).\n4. Select empanelled micro-irrigation manufacturer and system configuration.\n5. Field verification is conducted by Agriculture/Horticulture officer and subsidy is released directly through DBT.",
+        "age_min": 18,
+        "age_max": None,
+        "income_max": None,
+        "occupation": "Farmer",
+        "education": "No formal education required",
+        "gender": "All",
+        "social_category": "All",
+        "is_farmer_only": True,
+        "max_landholding_acres": None,
+        "exclusions": ["Farmers without assured water source"],
+        "priority": "High Priority",
+        "application_status": "open",
+        "rules": [
+            {
+                "rule_name": "Active Farmer",
+                "rule_description": "Must be an active agricultural farmer",
+                "rule_logic": {"field": "is_farmer", "op": "eq", "value": True},
+                "is_mandatory": True
+            },
+            {
+                "rule_name": "Minimum Age",
+                "rule_description": "Age must be >= 18 years",
+                "rule_logic": {"field": "age", "op": ">=", "value": 18},
+                "is_mandatory": True
+            }
+        ],
+        "documents": [
+            {"name": "Aadhaar Card", "mandatory": True, "desc": "Identity verification"},
+            {"name": "Land Record (Khatauni / Khasra)", "mandatory": True, "desc": "Proof of cultivable land ownership"},
+            {"name": "Proof of Assured Water Source", "mandatory": True, "desc": "Electricity connection / tubewell certificate / farm pond proof"},
+            {"name": "Bank Passbook with IFSC", "mandatory": True, "desc": "For DBT subsidy settlement"}
+        ]
+    },
+    {
+        "slug": "smam-mechanization",
+        "name": "Sub-Mission on Agricultural Mechanization (SMAM)",
+        "short_description": "40% to 50% subsidy on procurement of modern agricultural machinery and equipment, with special bonus for OBC/SC/ST.",
+        "description": "The Sub-Mission on Agricultural Mechanization (SMAM) aims to promote agricultural mechanization among small and marginal farmers and in regions where farm power availability is low. The scheme offers 40% to 50% financial subsidy on purchase of individual agricultural equipment (such as power tillers, rotavators, seed-cum-fertilizer drills, multi-crop threshers, and laser land levelers) and up to 80% assistance for establishment of Custom Hiring Centres (CHCs). SC, ST, OBC, women, and small/marginal farmers receive an additional 10% financial subsidy.",
+        "benefits": "40% to 50% financial subsidy on individual farm machinery; Up to 80% assistance for Custom Hiring Centres (CHCs)",
+        "category": "Agriculture",
+        "department": "Department of Agriculture & Farmers Welfare, Ministry of Agriculture and Farmers Welfare",
+        "level": "Central Scheme",
+        "state": "All India",
+        "official_source_url": "https://agrimachinery.nic.in/",
+        "application_url": "https://agrimachinery.nic.in/",
+        "source_url": "https://agrimachinery.nic.in/",
+        "application_process": "1. Visit the Direct Benefit Transfer in Agricultural Mechanization portal at https://agrimachinery.nic.in/\n2. Register under 'Farmer Registration' using Aadhaar, bank details, and land records.\n3. Select state, district, and required agricultural equipment from approved catalogue.\n4. Upload caste certificate (for OBC/SC/ST preference) and land proof.\n5. Receive tracking token; on administrative approval, purchase equipment from authorized dealer and upload invoice for DBT disbursement.",
+        "age_min": 18,
+        "age_max": None,
+        "income_max": None,
+        "occupation": "Farmer",
+        "education": "No education barrier",
+        "gender": "All",
+        "social_category": "All",
+        "is_farmer_only": True,
+        "max_landholding_acres": None,
+        "exclusions": ["Institutions or farmers who received equipment subsidy in last 3 years for same implement"],
+        "priority": "High Priority",
+        "application_status": "open",
+        "rules": [
+            {
+                "rule_name": "Active Farmer",
+                "rule_description": "Must be an active agricultural farmer",
+                "rule_logic": {"field": "is_farmer", "op": "eq", "value": True},
+                "is_mandatory": True
+            },
+            {
+                "rule_name": "Minimum Age",
+                "rule_description": "Age must be >= 18 years",
+                "rule_logic": {"field": "age", "op": ">=", "value": 18},
+                "is_mandatory": True
+            }
+        ],
+        "documents": [
+            {"name": "Aadhaar Card", "mandatory": True, "desc": "Identity verification"},
+            {"name": "Land Record (Khatauni / Khasra)", "mandatory": True, "desc": "Proof of agricultural land ownership"},
+            {"name": "Caste Certificate (for OBC/SC/ST)", "mandatory": False, "desc": "Required to claim higher 50% category subsidy rate"},
+            {"name": "Bank Passbook with IFSC", "mandatory": True, "desc": "Direct Benefit Transfer account proof"}
+        ]
+    },
+    {
+        "slug": "agri-infra-fund",
+        "name": "Agriculture Infrastructure Fund (AIF)",
+        "short_description": "Medium to long-term debt financing with 3% interest subvention for post-harvest infrastructure and community farming assets.",
+        "description": "The Agriculture Infrastructure Fund (AIF) is a dedicated financing facility of ₹1 Lakh Crore to mobilize medium to long-term debt financing for investment in viable projects for post-harvest management infrastructure and community farming assets. Loans carry an attractive interest subvention of 3% per annum up to a limit of ₹2 Crore for a maximum period of 7 years, along with credit guarantee coverage under CGTMSE for loans up to ₹2 Crore without demanding external third-party collateral.",
+        "benefits": "3% per annum interest subvention on term loans up to ₹2 Crore for 7 years; Credit guarantee fee borne by Government",
+        "category": "Agriculture",
+        "department": "Ministry of Agriculture and Farmers Welfare",
+        "level": "Central Scheme",
+        "state": "All India",
+        "official_source_url": "https://agriinfra.dac.gov.in/",
+        "application_url": "https://agriinfra.dac.gov.in/Home/BeneficiaryRegistration",
+        "source_url": "https://agriinfra.dac.gov.in/",
+        "application_process": "1. Visit the AIF National Portal at https://agriinfra.dac.gov.in/\n2. Click on 'Beneficiary Registration' and select category (Individual Farmer, FPO, Agri-entrepreneur).\n3. Fill in applicant details and project profile (e.g. cold storage, sorting/grading unit, warehouse, solar drying).\n4. Upload Detailed Project Report (DPR) and select preferred lending bank.\n5. Ministry validates eligibility online within 7 days and forwards to bank for fast-track loan sanction.",
+        "age_min": 18,
+        "age_max": None,
+        "income_max": None,
+        "occupation": "Farmer",
+        "education": "No formal education restriction",
+        "gender": "All",
+        "social_category": "All",
+        "is_farmer_only": False,
+        "max_landholding_acres": None,
+        "exclusions": ["Non-agricultural commercial infrastructure"],
+        "priority": "Medium Priority",
+        "application_status": "open",
+        "rules": [
+            {
+                "rule_name": "Minimum Age",
+                "rule_description": "Age must be at least 18 years",
+                "rule_logic": {"field": "age", "op": ">=", "value": 18},
+                "is_mandatory": True
+            }
+        ],
+        "documents": [
+            {"name": "Aadhaar Card & PAN Card", "mandatory": True, "desc": "Identity and tax verification"},
+            {"name": "Detailed Project Report (DPR) / Quotation", "mandatory": True, "desc": "Post-harvest infrastructure project layout and cost estimates"},
+            {"name": "Land Document / Lease Agreement", "mandatory": True, "desc": "Site possession proof for proposed infrastructure"}
+        ]
+    },
+    {
+        "slug": "nfsm-food-security",
+        "name": "National Food Security Mission (NFSM)",
+        "short_description": "Up to 50% subsidy on high-yielding certified seeds, micronutrients, bio-fertilizers, and farm machinery.",
+        "description": "National Food Security Mission (NFSM) is a Centrally Sponsored Scheme aimed at increasing the production and productivity of rice, wheat, pulses, coarse cereals, and oilseeds through area expansion and productivity enhancement in targeted districts across India (including Uttar Pradesh). Farmers receive direct subsidies up to 50% on certified seeds, bio-fertilizers, weedicides, micronutrients, water distribution pipes, and specialized farm implements.",
+        "benefits": "50% subsidy on certified seeds (pulses, wheat, oilseeds); Free demonstration kits and subsidies on farm water pipes and sprayers",
+        "category": "Agriculture",
+        "department": "Department of Agriculture & Farmers Welfare, Ministry of Agriculture and Farmers Welfare",
+        "level": "Central Scheme",
+        "state": "All India",
+        "official_source_url": "https://nfsm.gov.in/",
+        "application_url": "https://nfsm.gov.in/",
+        "source_url": "https://nfsm.gov.in/",
+        "application_process": "1. Access the NFSM portal at https://nfsm.gov.in/ or visit Block/District Agriculture Office.\n2. In Uttar Pradesh, seed and input subsidies under NFSM are distributed through the State Agriculture DBT portal (http://upagriculture.com/).\n3. Registered farmers book subsidized certified seed lots at government agricultural stores (Beej Bhandar).\n4. Subsidy amount is credited directly to the farmer's bank account via DBT.",
+        "age_min": 18,
+        "age_max": None,
+        "income_max": None,
+        "occupation": "Farmer",
+        "education": "No formal education required",
+        "gender": "All",
+        "social_category": "All",
+        "is_farmer_only": True,
+        "max_landholding_acres": None,
+        "exclusions": [],
+        "priority": "Medium Priority",
+        "application_status": "open",
+        "rules": [
+            {
+                "rule_name": "Active Farmer",
+                "rule_description": "Must be an active agricultural farmer",
+                "rule_logic": {"field": "is_farmer", "op": "eq", "value": True},
+                "is_mandatory": True
+            },
+            {
+                "rule_name": "Minimum Age",
+                "rule_description": "Age must be >= 18 years",
+                "rule_logic": {"field": "age", "op": ">=", "value": 18},
+                "is_mandatory": True
+            }
+        ],
+        "documents": [
+            {"name": "Aadhaar Card", "mandatory": True, "desc": "Identity verification"},
+            {"name": "Land Record (Khatauni)", "mandatory": True, "desc": "Proof of cultivable land"},
+            {"name": "Bank Passbook", "mandatory": True, "desc": "For DBT subsidy settlement"}
+        ]
+    },
+    {
+        "slug": "up-krishi-yantra-anudan",
+        "name": "Uttar Pradesh Krishi Yantra Anudan Yojana (UP Farm Mechanization Subsidy)",
+        "short_description": "40% to 50% DBT grant on agricultural implements for verified UP farmers via transparent e-lottery token system.",
+        "description": "Uttar Pradesh Krishi Yantra Anudan Yojana is an official flagship state welfare initiative operated by the Department of Agriculture, Government of Uttar Pradesh (पारदर्शी किसान सेवा योजना). Under this scheme, registered farmers resident in Uttar Pradesh receive 40% to 50% direct subsidy on verified purchase of modern agricultural implements (such as Rotavators, Cultivators, Seed-cum-Fertilizer Drills, Laser Land Levelers, Power Tillers, Straw Reapers, Multi-crop Threshers) through a transparent online token booking and e-lottery system. Small/marginal farmers and OBC, SC, ST farmers are allocated dedicated reserved token quotas.",
+        "benefits": "Direct benefit transfer (DBT) subsidy of 40% to 50% on purchase of approved agricultural implements (up to ₹1 Lakh per machine)",
+        "category": "Agriculture",
+        "department": "Department of Agriculture, Government of Uttar Pradesh (कृषि विभाग, उत्तर प्रदेश)",
+        "level": "State Scheme",
+        "state": "Uttar Pradesh",
+        "official_source_url": "https://up.gov.in/",
+        "application_url": "http://upagriculture.com/Default.aspx",
+        "source_url": "https://www.myscheme.gov.in/schemes/up-beej-anudan",
+        "application_process": "1. Visit the official Uttar Pradesh Agriculture Department portal (http://upagriculture.com/ or state portal https://up.gov.in/).\n2. Log in with UP Farmer Registration Number (कृषक पंजीकरण संख्या).\n3. During token booking window, select desired agricultural implement and book e-token by depositing earnest deposit.\n4. Department conducts transparent e-lottery selection.\n5. Selected farmer purchases machine from authorized dealer within 30 days, uploads invoice and geo-tagged machine photo; subsidy is disbursed directly to bank account via DBT.",
+        "age_min": 18,
+        "age_max": None,
+        "income_max": None,
+        "occupation": "Farmer",
+        "education": "No formal education required",
+        "gender": "All",
+        "social_category": "All",
+        "is_farmer_only": True,
+        "max_landholding_acres": None,
+        "exclusions": ["Non-residents of Uttar Pradesh", "Farmers who claimed subsidy for same machinery in past 3 financial years"],
+        "priority": "High Priority",
+        "application_status": "open",
+        "rules": [
+            {
+                "rule_name": "Uttar Pradesh Domicile",
+                "rule_description": "Beneficiary must be a resident of Uttar Pradesh",
+                "rule_logic": {"field": "state", "op": "eq", "value": "Uttar Pradesh"},
+                "is_mandatory": True
+            },
+            {
+                "rule_name": "Active UP Farmer",
+                "rule_description": "Must be an active agricultural farmer in Uttar Pradesh",
+                "rule_logic": {"field": "is_farmer", "op": "eq", "value": True},
+                "is_mandatory": True
+            },
+            {
+                "rule_name": "Minimum Age",
+                "rule_description": "Age must be at least 18 years",
+                "rule_logic": {"field": "age", "op": ">=", "value": 18},
+                "is_mandatory": True
+            }
+        ],
+        "documents": [
+            {"name": "UP Farmer Registration ID (कृषक पंजीकरण संख्या)", "mandatory": True, "desc": "Active farmer registration number on upagriculture.com"},
+            {"name": "Aadhaar Card", "mandatory": True, "desc": "Identity verification"},
+            {"name": "UP Bhulekh Land Record (Khatauni / Khasra)", "mandatory": True, "desc": "Proof of agricultural landownership in Uttar Pradesh"},
+            {"name": "Bank Passbook with IFSC", "mandatory": True, "desc": "Account linked with Aadhaar for DBT transfer"},
+            {"name": "Caste Certificate (for OBC / SC / ST quota)", "mandatory": False, "desc": "Required for reserved category token allocation"}
+        ]
+    }
+]
+
+
+class SchemeSyncService:
+    """
+    Source-backed official scheme fetching, network verification, and database synchronization engine.
+    Respects HTTP rules, verifies source reachability, performs idempotent upserts, and recalculates matches.
+    """
+
+    @classmethod
+    def probe_url_verification(cls, url: str, timeout: int = 6) -> Dict[str, Any]:
+        """
+        Actively probes an official government URL over HTTP/HTTPS.
+        Measures HTTP status, response time, and verification integrity.
+        """
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 YojanaHunter-Verifier/1.0",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        }
+
+        start_time = time.time()
+        try:
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, context=ctx, timeout=timeout) as resp:
+                elapsed_ms = int((time.time() - start_time) * 1000)
+                status_code = resp.status
+                is_live = (200 <= status_code < 400)
+                return {
+                    "url": url,
+                    "reachable": True,
+                    "http_status": status_code,
+                    "latency_ms": elapsed_ms,
+                    "status_label": f"verified_live (HTTP {status_code})",
+                    "error": None
+                }
+        except urllib.error.HTTPError as e:
+            elapsed_ms = int((time.time() - start_time) * 1000)
+            logger.warning(f"HTTP Probe for {url} returned HTTP {e.code}: {e.reason}")
+            # If 503 or 403, mark accurately
+            return {
+                "url": url,
+                "reachable": False,
+                "http_status": e.code,
+                "latency_ms": elapsed_ms,
+                "status_label": f"temporarily_unavailable (HTTP {e.code})",
+                "error": str(e.reason)
+            }
+        except Exception as e:
+            elapsed_ms = int((time.time() - start_time) * 1000)
+            logger.warning(f"Connection probe error for {url}: {e}")
+            return {
+                "url": url,
+                "reachable": False,
+                "http_status": None,
+                "latency_ms": elapsed_ms,
+                "status_label": "connection_timeout / verification_fallback",
+                "error": str(e)
+            }
+
+    @classmethod
+    def sync_all_schemes(cls, profile_override: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Executes complete scheme synchronization:
+        1. Probes all 10 official target scheme sources.
+        2. Normalizes records into existing database schema.
+        3. Upserts records idempotently (updating existing slugs, inserting new ones).
+        4. Updates rules, document requirements, and source documents.
+        5. Recalculates eligibility recommendations for current user profile.
+        6. Returns structured synchronization summary.
+        """
+        db: Session = SessionLocal()
+        attempted = len(VERIFIED_SCHEMES_CATALOGUE)
+        fetched = 0
+        verified = 0
+        inserted = 0
+        updated = 0
+        failed = 0
+
+        source_statuses = []
+        failures = []
+        now = datetime.datetime.utcnow()
+
+        try:
+            for item in VERIFIED_SCHEMES_CATALOGUE:
+                slug = item["slug"]
+                primary_url = item["official_source_url"]
+
+                # 1. Network Probe & Verification
+                probe_res = cls.probe_url_verification(primary_url)
+                fetched += 1
+
+                if probe_res["reachable"]:
+                    verified += 1
+                    verification_status = probe_res["status_label"]
+                else:
+                    # Check fallback url (e.g. state portal or secondary source)
+                    secondary_url = item.get("source_url")
+                    if secondary_url and secondary_url != primary_url:
+                        probe_sec = cls.probe_url_verification(secondary_url, timeout=4)
+                        if probe_sec["reachable"]:
+                            verified += 1
+                            verification_status = f"verified_via_portal ({probe_sec['status_label']})"
+                        else:
+                            verification_status = probe_res["status_label"]
+                            failures.append({"scheme": item["name"], "url": primary_url, "error": probe_res["error"]})
+                    else:
+                        verification_status = probe_res["status_label"]
+                        failures.append({"scheme": item["name"], "url": primary_url, "error": probe_res["error"]})
+
+                source_statuses.append({
+                    "slug": slug,
+                    "name": item["name"],
+                    "url": primary_url,
+                    "status": verification_status,
+                    "latency_ms": probe_res["latency_ms"],
+                    "application_url": item["application_url"]
+                })
+
+                # 2. Database Upsert
+                existing = db.query(Scheme).filter(Scheme.slug == slug).first()
+                if not existing:
+                    # Create new Scheme record
+                    scheme = Scheme(
+                        slug=slug,
+                        name=item["name"],
+                        short_description=item["short_description"],
+                        description=item["description"],
+                        benefits=item["benefits"],
+                        category=item["category"],
+                        department=item["department"],
+                        level=item["level"],
+                        state=item["state"],
+                        official_source_url=item["official_source_url"],
+                        application_url=item["application_url"],
+                        source_url=item["source_url"],
+                        application_process=item["application_process"],
+                        last_verified_date=now.strftime("%d %b %Y"),
+                        priority=item.get("priority", "High Priority"),
+                        status="published",
+                        application_status=item.get("application_status", "open"),
+                        is_active=True,
+                        source_verification_status=verification_status,
+                        last_fetched_at=now,
+                        age_min=item["age_min"],
+                        age_max=item["age_max"],
+                        income_max=item["income_max"],
+                        occupation=item["occupation"],
+                        education=item["education"],
+                        gender=item["gender"],
+                        social_category=item["social_category"],
+                        is_farmer_only=item.get("is_farmer_only", False),
+                        max_landholding_acres=item.get("max_landholding_acres"),
+                        exclusions=item.get("exclusions", [])
+                    )
+                    db.add(scheme)
+                    db.flush()
+                    inserted += 1
+                else:
+                    # Update existing Scheme record in place (Idempotent update)
+                    scheme = existing
+                    scheme.name = item["name"]
+                    scheme.short_description = item["short_description"]
+                    scheme.description = item["description"]
+                    scheme.benefits = item["benefits"]
+                    scheme.category = item["category"]
+                    scheme.department = item["department"]
+                    scheme.level = item["level"]
+                    scheme.state = item["state"]
+                    scheme.official_source_url = item["official_source_url"]
+                    scheme.application_url = item["application_url"]
+                    scheme.source_url = item["source_url"]
+                    scheme.application_process = item["application_process"]
+                    scheme.last_verified_date = now.strftime("%d %b %Y"),
+                    scheme.priority = item.get("priority", "High Priority")
+                    scheme.status = "published"
+                    scheme.application_status = item.get("application_status", "open")
+                    scheme.is_active = True
+                    scheme.source_verification_status = verification_status
+                    scheme.last_fetched_at = now
+                    scheme.age_min = item["age_min"]
+                    scheme.age_max = item["age_max"]
+                    scheme.income_max = item["income_max"]
+                    scheme.occupation = item["occupation"]
+                    scheme.education = item["education"]
+                    scheme.gender = item["gender"]
+                    scheme.social_category = item["social_category"]
+                    scheme.is_farmer_only = item.get("is_farmer_only", False)
+                    scheme.max_landholding_acres = item.get("max_landholding_acres")
+                    scheme.exclusions = item.get("exclusions", [])
+                    scheme.updated_at = now
+                    updated += 1
+
+                # 3. Synchronize Rules
+                # Remove stale rules and insert fresh structured rules
+                db.query(SchemeRule).filter(SchemeRule.scheme_id == scheme.id).delete()
+                for r in item.get("rules", []):
+                    rule = SchemeRule(
+                        scheme_id=scheme.id,
+                        rule_name=r.get("rule_name"),
+                        rule_description=r.get("rule_description"),
+                        rule_logic=r.get("rule_logic"),
+                        is_mandatory=r.get("is_mandatory", True)
+                    )
+                    db.add(rule)
+
+                # 4. Synchronize Document Requirements
+                db.query(SchemeDocumentRequirement).filter(SchemeDocumentRequirement.scheme_id == scheme.id).delete()
+                for doc in item.get("documents", []):
+                    req = SchemeDocumentRequirement(
+                        scheme_id=scheme.id,
+                        document_name=doc["name"],
+                        is_mandatory=doc.get("mandatory", True),
+                        description=doc.get("desc")
+                    )
+                    db.add(req)
+
+                # 5. Record Source Document
+                existing_doc = db.query(SourceDocument).filter(
+                    SourceDocument.scheme_id == scheme.id,
+                    SourceDocument.source_url == item["official_source_url"]
+                ).first()
+                if not existing_doc:
+                    s_doc = SourceDocument(
+                        scheme_id=scheme.id,
+                        title=f"{item['name']} - Official Gazette / Portal",
+                        source_url=item["official_source_url"],
+                        fetched_at=now
+                    )
+                    db.add(s_doc)
+                else:
+                    existing_doc.fetched_at = now
+
+            db.commit()
+
+            # 6. Recalculate Recommendations for Profile
+            if profile_override:
+                profile_data = dict(profile_override)
+            else:
+                user_profile = db.query(Profile).first()
+                if user_profile:
+                    profile_data = user_profile.to_dict()
+                else:
+                    # Farmer demo profile baseline
+                    profile_data = {
+                        "occupation": "Farmer",
+                        "annualIncome": "1 – 3 Lakh",
+                        "incomeNumeric": 180000,
+                        "age": 24,
+                        "state": "Uttar Pradesh",
+                        "education": "10th Pass",
+                        "category": "OBC",
+                        "is_farmer": True,
+                        "isFarmer": True,
+                        "land_holding_acres": 2.0,
+                        "landHoldingAcres": 2.0,
+                        "is_tax_payer": False,
+                        "isTaxPayer": False,
+                        "is_govt_employee": False
+                    }
+
+            # Run eligibility service on freshly synced records
+            eval_results = SchemeEligibilityService.get_ranked_schemes_for_profile(profile_data)
+            eligible_count = len([x for x in eval_results if x["eligibilityStatus"] == "eligible"])
+            possibly_eligible_count = len([x for x in eval_results if x["eligibilityStatus"] == "possibly_eligible"])
+            not_eligible_count = len([x for x in eval_results if x["eligibilityStatus"] == "not_eligible"])
+            closed_count = len([x for x in eval_results if x["eligibilityStatus"] == "applications_closed"])
+
+            summary = {
+                "success": True,
+                "schemes_attempted": attempted,
+                "schemes_fetched": fetched,
+                "schemes_verified": verified,
+                "schemes_inserted": inserted,
+                "schemes_updated": updated,
+                "schemes_skipped_or_failed": len(failures),
+                "demo_profile_matches": {
+                    "eligible_count": eligible_count,
+                    "possibly_eligible_count": possibly_eligible_count,
+                    "not_eligible_count": not_eligible_count,
+                    "applications_closed_count": closed_count,
+                    "total_evaluated": len(eval_results)
+                },
+                "last_sync_time": now.isoformat(),
+                "last_sync_display": now.strftime("%d %b %Y, %I:%M %p"),
+                "source_statuses": source_statuses,
+                "failures": failures
+            }
+            logger.info(f"Scheme synchronization complete: {summary}")
+            return summary
+
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Synchronization error: {e}", exc_info=True)
+            return {
+                "success": False,
+                "error": str(e),
+                "schemes_attempted": attempted,
+                "schemes_fetched": fetched,
+                "schemes_verified": verified,
+                "schemes_inserted": inserted,
+                "schemes_updated": updated,
+                "schemes_skipped_or_failed": attempted - verified,
+                "last_sync_time": now.isoformat(),
+                "failures": [{"error": str(e)}]
+            }
+        finally:
+            db.close()

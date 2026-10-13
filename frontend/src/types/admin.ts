@@ -1,4 +1,4 @@
-import { Scheme, SchemeStatus } from './scheme';
+import { Scheme, SchemeStatus, ApplicationWindowStatus } from './scheme';
 
 export interface AdminUser {
   id: number;
@@ -25,21 +25,32 @@ export interface SchemeFormData {
   description: string;
   category: string;
   department: string;
-  level: string;
+  level: string; // "Central Scheme" | "State Scheme" | "District Scheme"
   state: string;
   benefits: string;
   officialUrl: string;
   applicationUrl: string;
   sourceUrl: string;
   applicationProcess: string;
+  applicationStatus?: ApplicationWindowStatus;
   ageMin: string | number;
   ageMax: string | number;
   incomeMax: string | number;
   occupation: string;
   education: string;
+  gender?: string;
+  socialCategory?: string;
+  isFarmerOnly?: boolean;
+  maxLandholdingAcres?: string | number;
+  isStudentOnly?: boolean;
+  isBusinessOnly?: boolean;
+  isDisabilityRequired?: boolean;
+  exclusions?: string[];
+  lastVerifiedDate?: string;
   startDate: string;
   endDate: string;
   requiredDocuments: string[];
   status: SchemeStatus;
   priority: 'High Priority' | 'Medium Priority' | 'Low Priority';
+  isActive?: boolean;
 }

@@ -12,7 +12,8 @@ import {
   AlertCircle, 
   Loader2,
   CheckCircle2,
-  Archive
+  Archive,
+  Eye
 } from "lucide-react";
 import { getAdminScheme, updateAdminScheme } from "@/services/adminService";
 import { SchemeFormData } from "@/types/admin";
@@ -25,6 +26,7 @@ export default function EditSchemePage() {
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [newDocInput, setNewDocInput] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
@@ -42,11 +44,20 @@ export default function EditSchemePage() {
     applicationUrl: "",
     sourceUrl: "",
     applicationProcess: "",
+    applicationStatus: "open",
     ageMin: "",
     ageMax: "",
     incomeMax: "",
     occupation: "",
     education: "",
+    gender: "All",
+    socialCategory: "All",
+    isFarmerOnly: false,
+    maxLandholdingAcres: "",
+    isStudentOnly: false,
+    isBusinessOnly: false,
+    isDisabilityRequired: false,
+    exclusions: [],
     startDate: "",
     endDate: "",
     requiredDocuments: [],
@@ -74,11 +85,20 @@ export default function EditSchemePage() {
             applicationUrl: scheme.applicationUrl || "",
             sourceUrl: scheme.sourceUrl || "",
             applicationProcess: scheme.applicationProcess || "",
+            applicationStatus: (scheme.applicationStatus || (scheme as any).application_status || "open") as any,
             ageMin: scheme.ageMin !== undefined && scheme.ageMin !== null ? scheme.ageMin : "",
             ageMax: scheme.ageMax !== undefined && scheme.ageMax !== null ? scheme.ageMax : "",
             incomeMax: scheme.incomeMax !== undefined && scheme.incomeMax !== null ? scheme.incomeMax : "",
             occupation: scheme.occupation || "",
             education: scheme.education || "",
+            gender: scheme.gender || "All",
+            socialCategory: scheme.socialCategory || (scheme as any).social_category || "All",
+            isFarmerOnly: Boolean(scheme.isFarmerOnly || (scheme as any).is_farmer_only),
+            maxLandholdingAcres: scheme.maxLandholdingAcres !== undefined && scheme.maxLandholdingAcres !== null ? scheme.maxLandholdingAcres : "",
+            isStudentOnly: Boolean(scheme.isStudentOnly || (scheme as any).is_student_only),
+            isBusinessOnly: Boolean(scheme.isBusinessOnly || (scheme as any).is_business_only),
+            isDisabilityRequired: Boolean(scheme.isDisabilityRequired || (scheme as any).is_disability_required),
+            exclusions: scheme.exclusions || [],
             startDate: scheme.startDate ? scheme.startDate.substring(0, 10) : "",
             endDate: scheme.endDate ? scheme.endDate.substring(0, 10) : "",
             requiredDocuments: scheme.requiredDocuments || [],
@@ -495,6 +515,148 @@ export default function EditSchemePage() {
               />
             </div>
           </div>
+
+          {/* Demographics: Gender & Social Category */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700">Target Gender</label>
+              <select
+                value={formData.gender || "All"}
+                onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-brand-border text-sm text-brand-navy bg-white focus:outline-none focus:border-brand-blue"
+              >
+                <option value="All">All Genders</option>
+                <option value="Female">Female Only</option>
+                <option value="Male">Male Only</option>
+                <option value="Transgender">Transgender</option>
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700">Social Category</label>
+              <select
+                value={formData.socialCategory || "All"}
+                onChange={(e) => setFormData({ ...formData, socialCategory: e.target.value })}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-brand-border text-sm text-brand-navy bg-white focus:outline-none focus:border-brand-blue"
+              >
+                <option value="All">All Social Categories</option>
+                <option value="SC">SC (Scheduled Caste)</option>
+                <option value="ST">ST (Scheduled Tribe)</option>
+                <option value="OBC">OBC (Other Backward Classes)</option>
+                <option value="General">General Category</option>
+                <option value="Minority">Minority</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Specific Beneficiary Checkboxes */}
+          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-3">
+            <span className="text-xs font-bold text-brand-navy block uppercase tracking-wider">
+              Beneficiary Constraints
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={Boolean(formData.isFarmerOnly)}
+                  onChange={(e) => setFormData({ ...formData, isFarmerOnly: e.target.checked })}
+                  className="rounded text-brand-blue focus:ring-brand-blue/30 w-4 h-4"
+                />
+                <span>Farmer Beneficiaries Only</span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={Boolean(formData.isStudentOnly)}
+                  onChange={(e) => setFormData({ ...formData, isStudentOnly: e.target.checked })}
+                  className="rounded text-brand-blue focus:ring-brand-blue/30 w-4 h-4"
+                />
+                <span>Students / Enrolled Youths Only</span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={Boolean(formData.isBusinessOnly)}
+                  onChange={(e) => setFormData({ ...formData, isBusinessOnly: e.target.checked })}
+                  className="rounded text-brand-blue focus:ring-brand-blue/30 w-4 h-4"
+                />
+                <span>Business Owners / MSME Entrepreneurs Only</span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={Boolean(formData.isDisabilityRequired)}
+                  onChange={(e) => setFormData({ ...formData, isDisabilityRequired: e.target.checked })}
+                  className="rounded text-brand-blue focus:ring-brand-blue/30 w-4 h-4"
+                />
+                <span>Divyangjan / Persons with Disability Required</span>
+              </label>
+            </div>
+
+            {formData.isFarmerOnly && (
+              <div className="pt-2 border-t border-slate-200">
+                <label className="text-xs font-bold text-slate-700 block mb-1">
+                  Maximum Landholding Limit (Acres)
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={formData.maxLandholdingAcres}
+                  onChange={(e) => setFormData({ ...formData, maxLandholdingAcres: e.target.value })}
+                  placeholder="e.g. 5.0 (leave blank if any landholding is eligible)"
+                  className="w-full sm:w-64 px-3 py-1.5 rounded-lg border border-brand-border text-xs text-brand-navy focus:outline-none focus:border-brand-blue bg-white"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Exclusions checklist */}
+          <div className="p-4 rounded-xl bg-rose-50/40 border border-rose-200/60 space-y-2">
+            <span className="text-xs font-bold text-rose-800 block uppercase tracking-wider">
+              Exclusion Rules (Ineligible If True)
+            </span>
+            <div className="flex flex-wrap gap-4 text-xs">
+              <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={formData.exclusions?.includes("tax_payer")}
+                  onChange={(e) => {
+                    const current = formData.exclusions || [];
+                    setFormData({
+                      ...formData,
+                      exclusions: e.target.checked
+                        ? [...current, "tax_payer"]
+                        : current.filter((x) => x !== "tax_payer"),
+                    });
+                  }}
+                  className="rounded text-rose-600 focus:ring-rose-500/30 w-4 h-4"
+                />
+                <span>Exclude Income Tax Payers</span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={formData.exclusions?.includes("govt_employee")}
+                  onChange={(e) => {
+                    const current = formData.exclusions || [];
+                    setFormData({
+                      ...formData,
+                      exclusions: e.target.checked
+                        ? [...current, "govt_employee"]
+                        : current.filter((x) => x !== "govt_employee"),
+                    });
+                  }}
+                  className="rounded text-rose-600 focus:ring-rose-500/30 w-4 h-4"
+                />
+                <span>Exclude Government Employees</span>
+              </label>
+            </div>
+          </div>
         </div>
 
         {/* Section 4: Required Documents */}
@@ -548,7 +710,7 @@ export default function EditSchemePage() {
         {/* Section 5: Official URLs & Dates */}
         <div className="space-y-4">
           <h2 className="text-sm font-extrabold text-brand-navy uppercase tracking-wider border-b border-slate-100 pb-2">
-            5. Official URLs & Dates
+            5. Official URLs & Application Window
           </h2>
 
           <div className="grid grid-cols-1 gap-4">
@@ -588,7 +750,22 @@ export default function EditSchemePage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Application Window Status & Dates */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">Application Window Status</label>
+                <select
+                  value={formData.applicationStatus || "open"}
+                  onChange={(e) => setFormData({ ...formData, applicationStatus: e.target.value as any })}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-brand-border text-sm text-brand-navy bg-white focus:outline-none focus:border-brand-blue"
+                >
+                  <option value="open">Open (Accepting Applications)</option>
+                  <option value="closing_soon">Closing Soon</option>
+                  <option value="closed">Closed (Applications Ceased)</option>
+                  <option value="upcoming">Upcoming (Not Yet Open)</option>
+                </select>
+              </div>
+
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-700">Start Date</label>
                 <input
@@ -621,12 +798,21 @@ export default function EditSchemePage() {
             Cancel
           </Link>
 
-          <div className="w-full sm:w-auto flex items-center gap-3">
+          <div className="w-full sm:w-auto flex items-center gap-2 sm:gap-3 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setPreviewOpen(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm rounded-xl transition"
+            >
+              <Eye className="w-4 h-4 text-slate-600" />
+              <span>Preview</span>
+            </button>
+
             <button
               type="button"
               disabled={submitting}
               onClick={() => handleSave("draft")}
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 font-bold text-xs sm:text-sm rounded-xl transition disabled:opacity-60"
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 font-bold text-xs sm:text-sm rounded-xl transition disabled:opacity-60"
             >
               <Save className="w-4 h-4 text-amber-600" />
               <span>Save as Draft</span>
@@ -636,7 +822,7 @@ export default function EditSchemePage() {
               type="button"
               disabled={submitting}
               onClick={() => handleSave("published")}
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-brand-blue hover:bg-brand-blue-dark active:scale-[0.99] text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs transition disabled:opacity-60"
+              className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-brand-blue hover:bg-brand-blue-dark active:scale-[0.99] text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs transition disabled:opacity-60"
             >
               {submitting ? (
                 <>
@@ -653,6 +839,90 @@ export default function EditSchemePage() {
           </div>
         </div>
       </div>
+
+      {/* Preview Modal */}
+      {previewOpen && (
+        <div className="fixed inset-0 z-50 bg-brand-navy/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-6 shadow-floating border border-brand-border">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <span className="text-xs font-bold text-brand-blue uppercase tracking-wider">
+                  Live Preview
+                </span>
+                <h3 className="text-lg font-black text-brand-navy">
+                  {formData.name || "Untitled Scheme"}
+                </h3>
+              </div>
+              <button
+                onClick={() => setPreviewOpen(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs sm:text-sm">
+              <p className="text-slate-600 font-medium">
+                {formData.shortDescription || "No short summary provided."}
+              </p>
+
+              <div className="grid grid-cols-2 gap-3 p-4 rounded-xl bg-slate-50 border border-slate-100">
+                <div>
+                  <span className="text-slate-400 font-bold block text-xs">Benefits</span>
+                  <span className="text-emerald-700 font-black text-sm">
+                    {formData.benefits || "Not specified"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-bold block text-xs">Department</span>
+                  <span className="text-slate-800 font-bold text-xs">
+                    {formData.department || "Government of India"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-bold block text-xs">Category & Level</span>
+                  <span className="text-slate-700 font-semibold text-xs">
+                    {formData.category} • {formData.level}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-bold block text-xs">Application Window</span>
+                  <span className="text-brand-blue font-bold text-xs capitalize">
+                    {formData.applicationStatus || "Open"}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <span className="text-slate-700 font-bold block mb-1">Description</span>
+                <p className="text-slate-600 whitespace-pre-line text-xs">
+                  {formData.description || "No full description provided."}
+                </p>
+              </div>
+
+              <div>
+                <span className="text-slate-700 font-bold block mb-1">Required Documents</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {formData.requiredDocuments.map((d) => (
+                    <span key={d} className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 text-xs font-semibold">
+                      {d}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-100 flex justify-end">
+              <button
+                onClick={() => setPreviewOpen(false)}
+                className="px-5 py-2 bg-brand-navy text-white rounded-xl font-bold text-xs hover:bg-slate-800 transition"
+              >
+                Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

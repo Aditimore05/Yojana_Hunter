@@ -22,15 +22,22 @@ import { demoCategoryDistribution, demoRecentActivities } from "@/data/demoData"
 import { UserProfile } from "@/types/profile";
 import { getSchemes } from "@/services/schemeService";
 import { Scheme } from "@/types/scheme";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { useAuth } from "@/context/AuthContext";
 
-export default function DashboardPage() {
-  const [profile, setProfile] = useState<UserProfile>(getStoredProfile());
+function DashboardContent() {
+  const { profile: authProfile } = useAuth();
+  const [profile, setProfile] = useState<UserProfile>(authProfile || getStoredProfile());
   const [mounted, setMounted] = useState(false);
   const [schemes, setSchemes] = useState<Scheme[]>([]);
   const [counts, setCounts] = useState({ total: 12, eligible: 6, almost: 3, ineligible: 3 });
 
   useEffect(() => {
-    setProfile(getStoredProfile());
+    if (authProfile) {
+      setProfile(authProfile);
+    } else {
+      setProfile(getStoredProfile());
+    }
     setMounted(true);
 
     async function loadData() {
@@ -298,5 +305,13 @@ export default function DashboardPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <ProtectedRoute>
+      <DashboardContent />
+    </ProtectedRoute>
   );
 }

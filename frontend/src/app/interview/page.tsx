@@ -202,21 +202,30 @@ export default function InterviewPage() {
           })}
 
           {isCompleted && (
-            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between gap-4 mt-4 animate-in fade-in duration-300">
+            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mt-4 animate-in fade-in duration-300">
               <div className="flex items-center gap-3">
                 <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
                 <div>
                   <h4 className="text-sm font-bold text-emerald-900">Profile Ready!</h4>
-                  <p className="text-xs text-emerald-700">All responses recorded successfully.</p>
+                  <p className="text-xs text-emerald-700">All 6 fields recorded. You can view your matched government schemes now.</p>
                 </div>
               </div>
-              <button
-                onClick={() => router.push("/profile")}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 shadow-sm transition"
-              >
-                <span>View Profile</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-2 self-end sm:self-auto">
+                <button
+                  onClick={() => router.push("/profile")}
+                  className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition"
+                >
+                  View Profile
+                </button>
+                <button
+                  onClick={() => router.push("/schemes")}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 shadow-sm transition"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>View Matched Schemes</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           )}
 

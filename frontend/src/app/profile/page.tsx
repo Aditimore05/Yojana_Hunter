@@ -19,25 +19,30 @@ import {
 import { getStoredProfile, saveStoredProfile } from "@/lib/storage";
 import { fetchProfile, updateProfile } from "@/services/profileService";
 import { UserProfile } from "@/types/profile";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { useAuth } from "@/context/AuthContext";
 
-export default function ProfileSummaryPage() {
+function ProfileSummaryContent() {
   const router = useRouter();
-  const [profile, setProfile] = useState<UserProfile>(getStoredProfile());
+  const { profile: authProfile, updateProfileState } = useAuth();
+  const [profile, setProfile] = useState<UserProfile>(authProfile || getStoredProfile());
   const [isEditing, setIsEditing] = useState(false);
-  const [editFormData, setEditFormData] = useState<UserProfile>(getStoredProfile());
+  const [editFormData, setEditFormData] = useState<UserProfile>(authProfile || getStoredProfile());
 
   useEffect(() => {
     fetchProfile().then((loaded) => {
       if (loaded) {
         setProfile(loaded);
         setEditFormData(loaded);
+        updateProfileState(loaded);
       }
     });
-  }, []);
+  }, [updateProfileState]);
 
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     setProfile(editFormData);
+    updateProfileState(editFormData);
     await updateProfile(editFormData);
     setIsEditing(false);
   };
@@ -316,5 +321,13 @@ export default function ProfileSummaryPage() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function ProfileSummaryPage() {
+  return (
+    <ProtectedRoute>
+      <ProfileSummaryContent />
+    </ProtectedRoute>
   );
 }

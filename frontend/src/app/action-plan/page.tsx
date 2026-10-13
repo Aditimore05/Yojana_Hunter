@@ -15,8 +15,9 @@ import {
 } from "lucide-react";
 import { demoActionPlanSteps } from "@/data/demoData";
 import { EligibilityBadge } from "@/components/schemes/EligibilityBadge";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
-export default function ActionPlanPage() {
+function ActionPlanContent() {
   return (
     <main className="flex-1 bg-brand-bg py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto space-y-6">
@@ -113,5 +114,13 @@ export default function ActionPlanPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function ActionPlanPage() {
+  return (
+    <ProtectedRoute>
+      <ActionPlanContent />
+    </ProtectedRoute>
   );
 }

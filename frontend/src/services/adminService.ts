@@ -147,17 +147,41 @@ export async function getAdminSchemes(filters?: {
   q?: string;
   category?: string;
   state?: string;
+  department?: string;
+  level?: string;
   status?: string;
+  applicationStatus?: string;
 }): Promise<Scheme[]> {
   const params = new URLSearchParams();
   if (filters?.q) params.set('q', filters.q);
   if (filters?.category && filters.category !== 'all') params.set('category', filters.category);
   if (filters?.state && filters.state !== 'all') params.set('state', filters.state);
+  if (filters?.department && filters.department !== 'all') params.set('department', filters.department);
+  if (filters?.level && filters.level !== 'all') params.set('level', filters.level);
   if (filters?.status && filters.status !== 'all') params.set('status', filters.status);
+  if (filters?.applicationStatus && filters.applicationStatus !== 'all') params.set('application_status', filters.applicationStatus);
 
   const queryStr = params.toString() ? `?${params.toString()}` : '';
   const res = await adminFetch<Scheme[]>(`/admin/schemes${queryStr}`);
   return res.data || [];
+}
+
+export async function toggleAdminSchemeActive(
+  schemeId: string,
+  isActive?: boolean
+): Promise<{ success: boolean; scheme?: Scheme; isActive?: boolean; error?: string }> {
+  const res = await adminFetch<{ message: string; isActive: boolean; scheme: Scheme }>(
+    `/admin/schemes/${schemeId}/toggle-active`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(isActive !== undefined ? { isActive } : {}),
+    }
+  );
+
+  if (res.data) {
+    return { success: true, scheme: res.data.scheme, isActive: res.data.isActive };
+  }
+  return { success: false, error: res.error || 'Failed to toggle active status.' };
 }
 
 export async function getAdminScheme(schemeId: string): Promise<Scheme | null> {

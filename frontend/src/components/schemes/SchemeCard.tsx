@@ -1,14 +1,48 @@
-import React from "react";
+"use client";
+
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { GraduationCap, Award, Wrench, FileWarning, ArrowRight, BookOpen } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { GraduationCap, Award, Wrench, FileWarning, ArrowRight, BookOpen, AlertCircle, Sparkles, ExternalLink, ShieldCheck, Bookmark, Loader2 } from "lucide-react";
 import { Scheme } from "@/types/scheme";
 import { EligibilityBadge } from "./EligibilityBadge";
+import { useAuth } from "@/context/AuthContext";
+import { saveScheme, removeSavedScheme, checkIsSaved } from "@/services/savedSchemeService";
 
 interface Props {
   scheme: Scheme;
 }
 
 export const SchemeCard: React.FC<Props> = ({ scheme }) => {
+  const router = useRouter();
+  const { isAuthenticated } = useAuth();
+  const [isSaved, setIsSaved] = useState(Boolean((scheme as any).isSaved));
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (isAuthenticated && (scheme as any).isSaved === undefined) {
+      checkIsSaved(scheme.slug || scheme.id).then(setIsSaved);
+    }
+  }, [isAuthenticated, scheme]);
+
+  const handleToggleBookmark = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isAuthenticated) {
+      router.push("/login?redirect=/schemes");
+      return;
+    }
+    setSaving(true);
+    const targetId = scheme.slug || scheme.id;
+    if (isSaved) {
+      await removeSavedScheme(targetId);
+      setIsSaved(false);
+    } else {
+      await saveScheme(targetId);
+      setIsSaved(true);
+    }
+    setSaving(false);
+  };
   const getIcon = () => {
     switch (scheme.id) {
       case "pm-vidyalakshmi":
@@ -44,37 +78,96 @@ export const SchemeCard: React.FC<Props> = ({ scheme }) => {
     }
   };
 
+  const getApplicationWindowBadge = () => {
+    if (!scheme.applicationStatus || scheme.applicationStatus === "open") return null;
+    if (scheme.applicationStatus === "closed") {
+      return (
+        <span className="px-2 py-0.5 rounded-md text-3xs font-bold uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200">
+          Closed
+        </span>
+      );
+    }
+    if (scheme.applicationStatus === "closing_soon") {
+      return (
+        <span className="px-2 py-0.5 rounded-md text-3xs font-bold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200">
+          Closing Soon
+        </span>
+      );
+    }
+    if (scheme.applicationStatus === "upcoming") {
+      return (
+        <span className="px-2 py-0.5 rounded-md text-3xs font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200">
+          Upcoming
+        </span>
+      );
+    }
+    return null;
+  };
+
+  const officialTargetUrl = scheme.applicationUrl || scheme.officialUrl;
+
   return (
     <div className="p-4 sm:p-5 bg-white rounded-2xl border border-brand-border shadow-card hover:shadow-card-hover transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       {/* Left side content */}
-      <div className="flex items-start gap-4">
+      <div className="flex items-start gap-4 flex-1 min-w-0">
         {getIcon()}
-        <div>
+        <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2.5 flex-wrap">
             <h3 className="font-bold text-base sm:text-lg text-brand-navy">
               {scheme.name}
             </h3>
             <EligibilityBadge status={scheme.eligibilityStatus} size="sm" />
+            {getApplicationWindowBadge()}
           </div>
-          <p className="mt-1 text-xs sm:text-sm text-slate-500">
+
+          {/* Department & State Sub-badge */}
+          <div className="mt-1 flex items-center gap-2 text-2xs text-slate-500 flex-wrap">
+            <span className="font-medium text-slate-600">{scheme.department || "Government of India"}</span>
+            <span>·</span>
+            <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-semibold">
+              {scheme.level || "Central Scheme"} ({scheme.state || "All India"})
+            </span>
+            <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 font-semibold">
+              <ShieldCheck className="w-3 h-3 text-emerald-600" />
+              <span>Verified Official Source</span>
+            </span>
+          </div>
+
+          <p className="mt-1.5 text-xs sm:text-sm text-slate-600 line-clamp-2">
             {scheme.shortDescription}
           </p>
+
+          {/* Why you match snippet */}
+          {scheme.whyMatched && (
+            <div className="mt-2 text-xs text-slate-700 bg-blue-50/60 p-2.5 rounded-xl border border-blue-100 flex items-start gap-2">
+              <Sparkles className="w-3.5 h-3.5 text-brand-blue shrink-0 mt-0.5" />
+              <span className="line-clamp-2">{scheme.whyMatched}</span>
+            </div>
+          )}
+
+          {/* Missing info prompt */}
+          {scheme.missingInformation && scheme.missingInformation.length > 0 && scheme.eligibilityStatus !== "not_eligible" && (
+            <div className="mt-1.5 text-2xs font-medium text-amber-800 bg-amber-50/70 px-2.5 py-1 rounded-lg border border-amber-200 flex items-center gap-1.5">
+              <AlertCircle className="w-3 h-3 text-amber-600 shrink-0" />
+              <span>Action needed: {scheme.missingInformation[0]}</span>
+            </div>
+          )}
 
           <div className="mt-2.5 flex items-center gap-4 text-xs flex-wrap">
             {scheme.benefit && (
               <span className="text-slate-600 font-medium">
-                Benefit: <span className="font-semibold text-slate-800">{scheme.benefit}</span>
+                Benefit: <span className="font-semibold text-slate-900">{scheme.benefit}</span>
               </span>
             )}
 
-            {scheme.matchScore !== undefined && scheme.eligibilityStatus !== "ineligible" && (
-              <span className="font-bold text-emerald-600">
-                Match: {scheme.matchScore}%
+            {scheme.matchScore !== undefined && scheme.eligibilityStatus !== "not_eligible" && scheme.eligibilityStatus !== "ineligible" && (
+              <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                Match Score: {scheme.matchScore}%
               </span>
             )}
 
             {scheme.ineligibleReason && (
-              <span className="font-medium text-rose-600">
+              <span className="font-medium text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
                 Reason: {scheme.ineligibleReason}
               </span>
             )}
@@ -82,16 +175,49 @@ export const SchemeCard: React.FC<Props> = ({ scheme }) => {
         </div>
       </div>
 
-      {/* Right Action */}
-      <div className="shrink-0 self-end sm:self-center">
-        <Link
-          href={`/schemes/${scheme.id}`}
-          className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-brand-blue hover:text-brand-blue-dark hover:underline transition"
-        >
-          <span>View Details</span>
-          <ArrowRight className="w-4 h-4" />
-        </Link>
+      {/* Right Action Buttons */}
+      <div className="shrink-0 flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={handleToggleBookmark}
+            disabled={saving}
+            title={isSaved ? "Saved to your bookmarks" : "Save this scheme"}
+            className={`p-2 rounded-lg transition border ${
+              isSaved
+                ? "bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100"
+                : "bg-slate-50 text-slate-400 border-slate-200 hover:text-brand-blue hover:bg-slate-100"
+            }`}
+          >
+            {saving ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Bookmark className={`w-3.5 h-3.5 ${isSaved ? "fill-current" : ""}`} />
+            )}
+          </button>
+
+          {officialTargetUrl && (
+            <a
+              href={officialTargetUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition border border-slate-200"
+              title="Open official government scheme page"
+            >
+              <span>Portal</span>
+              <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
+            </a>
+          )}
+
+          <Link
+            href={`/schemes/${scheme.slug || scheme.id}`}
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-brand-blue hover:bg-brand-blue-dark shadow-xs transition"
+          >
+            <span>Details</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
       </div>
     </div>
   );
 };
+

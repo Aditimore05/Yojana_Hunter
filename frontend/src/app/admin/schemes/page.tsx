@@ -25,7 +25,8 @@ import {
 import { 
   getAdminSchemes, 
   updateAdminSchemeStatus, 
-  deleteAdminScheme 
+  deleteAdminScheme,
+  toggleAdminSchemeActive
 } from "@/services/adminService";
 import { Scheme, SchemeStatus } from "@/types/scheme";
 
@@ -39,6 +40,8 @@ export default function AdminManageSchemesPage() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedState, setSelectedState] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
+  const [selectedLevel, setSelectedLevel] = useState("all");
+  const [selectedAppStatus, setSelectedAppStatus] = useState("all");
 
   // Modals & confirmation
   const [viewScheme, setViewScheme] = useState<Scheme | null>(null);
@@ -55,6 +58,8 @@ export default function AdminManageSchemesPage() {
         category: selectedCategory,
         state: selectedState,
         status: selectedStatus,
+        level: selectedLevel,
+        applicationStatus: selectedAppStatus,
       });
       setSchemes(data);
     } catch {
@@ -69,7 +74,25 @@ export default function AdminManageSchemesPage() {
       fetchSchemes();
     }, 250);
     return () => clearTimeout(timer);
-  }, [searchQuery, selectedCategory, selectedState, selectedStatus]);
+  }, [searchQuery, selectedCategory, selectedState, selectedStatus, selectedLevel, selectedAppStatus]);
+
+  const handleToggleActive = async (scheme: Scheme) => {
+    setActionLoading(true);
+    try {
+      const res = await toggleAdminSchemeActive(scheme.slug || scheme.id, !scheme.isActive);
+      if (res.success) {
+        setActionSuccess(`Scheme "${scheme.name}" is now ${res.isActive ? 'Active (Live)' : 'Deactivated (Hidden)'}.`);
+        fetchSchemes();
+        setTimeout(() => setActionSuccess(null), 3500);
+      } else {
+        setError(res.error || "Failed to toggle scheme active status.");
+      }
+    } catch {
+      setError("Error toggling scheme active state.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   const handleStatusChange = async (scheme: Scheme, newStatus: SchemeStatus) => {
     setActionLoading(true);
@@ -189,8 +212,8 @@ export default function AdminManageSchemesPage() {
       {/* Search & Filters Card */}
       <div className="p-4 sm:p-5 bg-white rounded-2xl border border-brand-border shadow-card space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-          {/* Search box (5 cols) */}
-          <div className="sm:col-span-5 relative">
+          {/* Search box (4 cols) */}
+          <div className="sm:col-span-4 relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
@@ -209,17 +232,32 @@ export default function AdminManageSchemesPage() {
             )}
           </div>
 
-          {/* Status Filter (3 cols) */}
-          <div className="sm:col-span-3">
+          {/* Status Filter (2 cols) */}
+          <div className="sm:col-span-2">
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
               className="w-full px-3 py-2.5 rounded-xl border border-brand-border text-xs sm:text-sm text-brand-navy bg-white focus:outline-none focus:border-brand-blue"
             >
               <option value="all">All Statuses</option>
-              <option value="published">Published (Live)</option>
+              <option value="published">Published</option>
               <option value="draft">Draft (Hidden)</option>
               <option value="archived">Archived</option>
+            </select>
+          </div>
+
+          {/* Application Window Status (2 cols) */}
+          <div className="sm:col-span-2">
+            <select
+              value={selectedAppStatus}
+              onChange={(e) => setSelectedAppStatus(e.target.value)}
+              className="w-full px-3 py-2.5 rounded-xl border border-brand-border text-xs sm:text-sm text-brand-navy bg-white focus:outline-none focus:border-brand-blue"
+            >
+              <option value="all">All Windows</option>
+              <option value="open">Window: Open</option>
+              <option value="closing_soon">Window: Closing Soon</option>
+              <option value="closed">Window: Closed</option>
+              <option value="upcoming">Window: Upcoming</option>
             </select>
           </div>
 
@@ -236,62 +274,77 @@ export default function AdminManageSchemesPage() {
             </select>
           </div>
 
-          {/* State Filter (2 cols) */}
+          {/* Level Filter (2 cols) */}
           <div className="sm:col-span-2">
+            <select
+              value={selectedLevel}
+              onChange={(e) => setSelectedLevel(e.target.value)}
+              className="w-full px-3 py-2.5 rounded-xl border border-brand-border text-xs sm:text-sm text-brand-navy bg-white focus:outline-none focus:border-brand-blue"
+            >
+              <option value="all">All Levels</option>
+              <option value="Central Scheme">Central Scheme</option>
+              <option value="State Scheme">State Scheme</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Quick status tabs count & State filter */}
+        <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => setSelectedStatus("all")}
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
+                selectedStatus === "all"
+                  ? "bg-brand-navy text-white"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              All ({schemes.length})
+            </button>
+            <button
+              onClick={() => setSelectedStatus("published")}
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
+                selectedStatus === "published"
+                  ? "bg-emerald-600 text-white"
+                  : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+              }`}
+            >
+              Published
+            </button>
+            <button
+              onClick={() => setSelectedStatus("draft")}
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
+                selectedStatus === "draft"
+                  ? "bg-amber-600 text-white"
+                  : "bg-amber-50 text-amber-700 hover:bg-amber-100"
+              }`}
+            >
+              Drafts
+            </button>
+            <button
+              onClick={() => setSelectedStatus("archived")}
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
+                selectedStatus === "archived"
+                  ? "bg-slate-700 text-white"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              Archived
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-400 font-semibold">State:</span>
             <select
               value={selectedState}
               onChange={(e) => setSelectedState(e.target.value === "All States" ? "all" : e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl border border-brand-border text-xs sm:text-sm text-brand-navy bg-white focus:outline-none focus:border-brand-blue"
+              className="px-2.5 py-1 rounded-lg border border-brand-border text-xs text-brand-navy bg-white focus:outline-none focus:border-brand-blue"
             >
               {states.map((st) => (
                 <option key={st} value={st === "All States" ? "all" : st}>{st}</option>
               ))}
             </select>
           </div>
-        </div>
-
-        {/* Quick status tabs count */}
-        <div className="flex items-center gap-2 pt-2 border-t border-slate-100 flex-wrap">
-          <button
-            onClick={() => setSelectedStatus("all")}
-            className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-              selectedStatus === "all"
-                ? "bg-brand-navy text-white"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-            }`}
-          >
-            All ({schemes.length})
-          </button>
-          <button
-            onClick={() => setSelectedStatus("published")}
-            className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-              selectedStatus === "published"
-                ? "bg-emerald-600 text-white"
-                : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-            }`}
-          >
-            Published
-          </button>
-          <button
-            onClick={() => setSelectedStatus("draft")}
-            className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-              selectedStatus === "draft"
-                ? "bg-amber-600 text-white"
-                : "bg-amber-50 text-amber-700 hover:bg-amber-100"
-            }`}
-          >
-            Drafts
-          </button>
-          <button
-            onClick={() => setSelectedStatus("archived")}
-            className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-              selectedStatus === "archived"
-                ? "bg-slate-700 text-white"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-            }`}
-          >
-            Archived
-          </button>
         </div>
       </div>
 
@@ -322,6 +375,8 @@ export default function AdminManageSchemesPage() {
                 setSelectedCategory("all");
                 setSelectedState("all");
                 setSelectedStatus("all");
+                setSelectedLevel("all");
+                setSelectedAppStatus("all");
               }}
               className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition"
             >
@@ -339,7 +394,8 @@ export default function AdminManageSchemesPage() {
                   <th className="py-3 px-4 sm:px-6">Scheme</th>
                   <th className="py-3 px-4">Category & Department</th>
                   <th className="py-3 px-4">Level & State</th>
-                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4">Status & Live</th>
+                  <th className="py-3 px-4">Window</th>
                   <th className="py-3 px-4">Benefits</th>
                   <th className="py-3 px-4 sm:px-6 text-right">Actions</th>
                 </tr>
@@ -347,6 +403,8 @@ export default function AdminManageSchemesPage() {
               <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
                 {schemes.map((scheme) => {
                   const status = scheme.status || (scheme.isActive ? "published" : "draft");
+                  const appStatus = scheme.applicationStatus || (scheme as any).application_status || "open";
+
                   return (
                     <tr key={scheme.id} className="hover:bg-slate-50/70 transition group">
                       {/* Name & short description */}
@@ -379,24 +437,67 @@ export default function AdminManageSchemesPage() {
                         </span>
                       </td>
 
-                      {/* Status Badge */}
+                      {/* Status Badge & Active Toggle */}
                       <td className="py-4 px-4">
-                        {status === "published" && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                            Published
+                        <div className="space-y-1.5">
+                          <div>
+                            {status === "published" && (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                Published
+                              </span>
+                            )}
+                            {status === "draft" && (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                Draft
+                              </span>
+                            )}
+                            {status === "archived" && (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                                <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                                Archived
+                              </span>
+                            )}
+                          </div>
+                          
+                          {/* Toggle Active Button */}
+                          <button
+                            type="button"
+                            onClick={() => handleToggleActive(scheme)}
+                            disabled={actionLoading}
+                            className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md transition ${
+                              scheme.isActive
+                                ? "bg-teal-50 text-teal-700 border border-teal-200 hover:bg-rose-50 hover:text-rose-700"
+                                : "bg-slate-100 text-slate-500 border border-slate-200 hover:bg-emerald-50 hover:text-emerald-700"
+                            }`}
+                            title="Click to toggle Citizen Visibility"
+                          >
+                            <span>{scheme.isActive ? "Active (Live)" : "Deactivated"}</span>
+                          </button>
+                        </div>
+                      </td>
+
+                      {/* Application Window Badge */}
+                      <td className="py-4 px-4">
+                        {appStatus === "open" && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                            Open
                           </span>
                         )}
-                        {status === "draft" && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                            Draft
+                        {appStatus === "closing_soon" && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-300">
+                            Closing Soon
                           </span>
                         )}
-                        {status === "archived" && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
-                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                            Archived
+                        {appStatus === "closed" && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                            Closed
+                          </span>
+                        )}
+                        {appStatus === "upcoming" && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                            Upcoming
                           </span>
                         )}
                       </td>
@@ -485,11 +586,11 @@ export default function AdminManageSchemesPage() {
       {/* View Scheme Details Modal */}
       {viewScheme && (
         <div className="fixed inset-0 z-50 bg-brand-navy/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-6 shadow-floating border border-brand-border">
+          <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-6 shadow-floating border border-brand-border">
             <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
               <div>
                 <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">
-                  {viewScheme.category} • {viewScheme.level}
+                  {viewScheme.category} • {viewScheme.level} • {viewScheme.state}
                 </span>
                 <h3 className="text-xl font-black text-brand-navy mt-1">
                   {viewScheme.name}
@@ -514,7 +615,7 @@ export default function AdminManageSchemesPage() {
                 <p className="text-slate-600 mt-0.5 whitespace-pre-line">{viewScheme.description}</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 p-4 rounded-xl bg-slate-50">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 rounded-xl bg-slate-50 border border-slate-100">
                 <div>
                   <span className="font-bold text-slate-700 block">Benefits:</span>
                   <span className="text-emerald-700 font-extrabold block mt-0.5">
@@ -525,6 +626,85 @@ export default function AdminManageSchemesPage() {
                   <span className="font-bold text-slate-700 block">Department:</span>
                   <span className="text-slate-600 block mt-0.5">{viewScheme.department}</span>
                 </div>
+                <div>
+                  <span className="font-bold text-slate-700 block">Window Status:</span>
+                  <span className="text-brand-blue font-bold block mt-0.5 capitalize">
+                    {viewScheme.applicationStatus || (viewScheme as any).application_status || "Open"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Extended Eligibility Criteria Limits */}
+              <div className="p-4 rounded-xl bg-blue-50/40 border border-blue-100 space-y-2">
+                <span className="font-bold text-brand-navy text-xs uppercase tracking-wider block">
+                  Eligibility Criteria & Restrictions
+                </span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                  <div>
+                    <span className="text-slate-500 block text-[11px]">Age:</span>
+                    <span className="font-semibold text-slate-800">
+                      {viewScheme.ageMin || viewScheme.ageMax 
+                        ? `${viewScheme.ageMin || 0} - ${viewScheme.ageMax || 'No max'} yrs` 
+                        : "Any age"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[11px]">Max Income:</span>
+                    <span className="font-semibold text-slate-800">
+                      {viewScheme.incomeMax ? `₹${Number(viewScheme.incomeMax).toLocaleString("en-IN")}` : "No ceiling"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[11px]">Gender:</span>
+                    <span className="font-semibold text-slate-800">
+                      {viewScheme.gender || "All"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[11px]">Social Category:</span>
+                    <span className="font-semibold text-slate-800">
+                      {viewScheme.socialCategory || (viewScheme as any).social_category || "All"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[11px]">Farmer Only:</span>
+                    <span className="font-semibold text-slate-800">
+                      {viewScheme.isFarmerOnly || (viewScheme as any).is_farmer_only ? "Yes" : "No"}
+                      {viewScheme.maxLandholdingAcres ? ` (≤ ${viewScheme.maxLandholdingAcres} acres)` : ""}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[11px]">Student Only:</span>
+                    <span className="font-semibold text-slate-800">
+                      {viewScheme.isStudentOnly || (viewScheme as any).is_student_only ? "Yes" : "No"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[11px]">Business Only:</span>
+                    <span className="font-semibold text-slate-800">
+                      {viewScheme.isBusinessOnly || (viewScheme as any).is_business_only ? "Yes" : "No"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[11px]">Disability:</span>
+                    <span className="font-semibold text-slate-800">
+                      {viewScheme.isDisabilityRequired || (viewScheme as any).is_disability_required ? "Required" : "Not Required"}
+                    </span>
+                  </div>
+                </div>
+
+                {viewScheme.exclusions && viewScheme.exclusions.length > 0 && (
+                  <div className="pt-2 border-t border-blue-100">
+                    <span className="text-[11px] font-bold text-rose-600 block">Exclusions:</span>
+                    <div className="flex flex-wrap gap-1 mt-0.5">
+                      {viewScheme.exclusions.map((excl) => (
+                        <span key={excl} className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                          {excl.replace(/_/g, " ")}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {viewScheme.requiredDocuments && viewScheme.requiredDocuments.length > 0 && (

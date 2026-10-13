@@ -88,6 +88,59 @@ class RuleEngine:
             passed = target_state == actual_state
             return passed, f"State: {user_val} (Required: {target_val})", user_val
 
+        # Normalize farmer status
+        if field in ("is_farmer", "isFarmer"):
+            user_farmer = profile.get("is_farmer") if profile.get("is_farmer") is not None else profile.get("isFarmer")
+            occ = str(profile.get("occupation") or "").lower()
+            actual_farmer = bool(user_farmer is True or "farmer" in occ or "agri" in occ or "kisan" in occ)
+            expected = bool(target_val)
+            passed = (actual_farmer == expected) if op in ("eq", "==") else actual_farmer
+            reason = "Agricultural Farmer Status Verified" if passed else "Must be an active agricultural farmer"
+            return passed, reason, "Farmer" if actual_farmer else (profile.get("occupation") or "Non-Farmer")
+
+        # Normalize student status
+        if field in ("is_student", "isStudent"):
+            user_student = profile.get("is_student") if profile.get("is_student") is not None else profile.get("isStudent")
+            occ = str(profile.get("occupation") or "").lower()
+            actual_student = bool(user_student is True or "student" in occ)
+            expected = bool(target_val)
+            passed = (actual_student == expected) if op in ("eq", "==") else actual_student
+            reason = "Student Enrollment Verified" if passed else "Requires active student enrollment"
+            return passed, reason, "Student" if actual_student else (profile.get("occupation") or "Non-Student")
+
+        # Normalize tax payer
+        if field in ("is_tax_payer", "isTaxPayer"):
+            actual_tax = bool(profile.get("is_tax_payer") or profile.get("isTaxPayer"))
+            expected = bool(target_val)
+            passed = (actual_tax == expected) if op in ("eq", "==") else not actual_tax
+            reason = "Non-Taxpayer Status Verified" if passed else "Income tax payers are excluded"
+            return passed, reason, "Taxpayer" if actual_tax else "Non-Taxpayer"
+
+        # Normalize landholding
+        if field in ("land_holding_acres", "landholdingAcres", "landHoldingAcres"):
+            raw_land = profile.get("land_holding_acres") or profile.get("landholdingAcres") or profile.get("landHoldingAcres")
+            if raw_land is None or raw_land == "":
+                return False, "Landholding information required", None
+            try:
+                actual_acres = float(raw_land)
+                target_acres = float(target_val)
+                eval_fn = cls.OPERATORS.get(op)
+                passed = eval_fn(actual_acres, target_acres) if eval_fn else (actual_acres <= target_acres)
+                reason = f"Landholding {actual_acres} acres {op} {target_acres} acres"
+                return passed, reason, f"{actual_acres} acres"
+            except Exception:
+                return False, "Invalid landholding number", raw_land
+
+        # Normalize category
+        if field in ("category", "social_category", "socialCategory"):
+            user_cat = str(profile.get("category") or profile.get("social_category") or profile.get("socialCategory") or "").strip().lower()
+            target_cat = str(target_val).strip().lower()
+            if target_cat in ("all", "any", "general, obc, sc, st"):
+                return True, "Open to all social categories", profile.get("category") or "General"
+            passed = (target_cat == user_cat) or (target_cat in user_cat)
+            reason = f"Social Category ({profile.get('category') or 'General'}) matches {target_val}" if passed else f"Requires {target_val} category"
+            return passed, reason, profile.get("category") or profile.get("socialCategory") or "Not Specified"
+
         if field not in profile or profile[field] is None:
             return False, f"Missing parameter: {field}", None
 

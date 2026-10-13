@@ -6,7 +6,7 @@ import Link from "next/link";
 import { ShieldCheck, Eye, EyeOff, Lock, Mail, ArrowRight, AlertCircle, Loader2 } from "lucide-react";
 import { adminLogin, isAdminLoggedIn } from "@/services/adminService";
 
-export default function AdminLoginPage() {
+function AdminLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [identifier, setIdentifier] = useState("");
@@ -184,5 +184,19 @@ export default function AdminLoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AdminLoginPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-brand-bg">
+          <Loader2 className="w-8 h-8 animate-spin text-brand-blue" />
+        </div>
+      }
+    >
+      <AdminLoginForm />
+    </React.Suspense>
   );
 }

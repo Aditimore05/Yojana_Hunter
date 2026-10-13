@@ -10,11 +10,15 @@ from .applications import applications_bp
 from .interview import interview_bp
 from .eligibility import eligibility_bp
 from .admin import admin_bp
+from .auth import auth_bp
+from .saved_schemes import saved_schemes_bp
 
 # Register all child blueprints under the main api blueprint
 api_bp.register_blueprint(health_bp, url_prefix="")
 api_bp.register_blueprint(schemes_bp, url_prefix="/schemes")
 api_bp.register_blueprint(admin_bp, url_prefix="/admin")
+api_bp.register_blueprint(auth_bp, url_prefix="/auth")
+api_bp.register_blueprint(saved_schemes_bp, url_prefix="/saved-schemes")
 api_bp.register_blueprint(profile_bp, url_prefix="/profile")
 api_bp.register_blueprint(documents_bp, url_prefix="/documents")
 api_bp.register_blueprint(applications_bp, url_prefix="/applications")
