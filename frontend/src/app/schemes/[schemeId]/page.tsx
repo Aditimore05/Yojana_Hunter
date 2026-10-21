@@ -21,28 +21,60 @@ import {
   Building,
   UserCheck,
   Bookmark,
-  Loader2
+  Loader2,
+  Lock,
+  Crown
 } from "lucide-react";
-import { getSchemeById } from "@/services/schemeService";
+import { getSchemeById, explainScheme, SchemeExplanationResult } from "@/services/schemeService";
 import { Scheme } from "@/types/scheme";
 import { EligibilityBadge } from "@/components/schemes/EligibilityBadge";
 import { useAuth } from "@/context/AuthContext";
+import { getStoredProfile } from "@/lib/storage";
 import { saveScheme, removeSavedScheme, checkIsSaved } from "@/services/savedSchemeService";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { SubscriptionModal } from "@/components/subscription/SubscriptionModal";
 
-export default function SchemeDetailsPage() {
+function SchemeDetailsContent() {
   const params = useParams();
   const router = useRouter();
   const schemeId = (params?.schemeId as string) || "pm-vidyalakshmi";
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, profile: authProfile } = useAuth();
   const [scheme, setScheme] = useState<Scheme | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSaved, setIsSaved] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Gemini AI Explanation State
+  const [aiExplanation, setAiExplanation] = useState<SchemeExplanationResult | null>(null);
+  const [loadingAi, setLoadingAi] = useState(false);
+  const [showAiCard, setShowAiCard] = useState(false);
+  const [subscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
+
+  const handleRequestAiExplanation = async () => {
+    if (!scheme) return;
+    setLoadingAi(true);
+    setShowAiCard(true);
+    try {
+      const active = authProfile || getStoredProfile();
+      const res = await explainScheme(scheme.slug || scheme.id, active, true);
+      setAiExplanation(res);
+    } catch {
+      setAiExplanation({
+        success: false,
+        explanation: "Unable to contact Gemini AI service.",
+        mode: "offline_fallback",
+        citations: []
+      });
+    } finally {
+      setLoadingAi(false);
+    }
+  };
+
   useEffect(() => {
     async function load() {
       setLoading(true);
-      const data = await getSchemeById(schemeId);
+      const active = authProfile || getStoredProfile();
+      const data = await getSchemeById(schemeId, active);
       if (data) {
         setScheme(data);
         if (isAuthenticated) {
@@ -52,7 +84,7 @@ export default function SchemeDetailsPage() {
       setLoading(false);
     }
     load();
-  }, [schemeId, isAuthenticated]);
+  }, [schemeId, isAuthenticated, authProfile]);
 
   const handleToggleBookmark = async () => {
     if (!isAuthenticated) {
@@ -94,6 +126,99 @@ export default function SchemeDetailsPage() {
             Return to schemes catalog
           </Link>
         </div>
+      </main>
+    );
+  }
+
+  if (scheme.isLocked) {
+    return (
+      <main className="flex-1 bg-brand-bg py-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-2xl mx-auto space-y-6">
+          <Link
+            href="/schemes"
+            className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-brand-blue hover:text-brand-blue-dark transition"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back to All Schemes</span>
+          </Link>
+
+          <div className="p-8 sm:p-10 bg-slate-900 border border-amber-500/30 rounded-3xl text-white shadow-2xl relative overflow-hidden text-center space-y-6">
+            <div className="absolute top-0 right-0 -mr-20 -mt-20 w-72 h-72 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="relative z-10 space-y-4">
+              <div className="w-16 h-16 rounded-3xl bg-amber-500/20 border border-amber-400/40 text-amber-400 flex items-center justify-center mx-auto shadow-lg shadow-amber-500/10">
+                <Lock className="w-8 h-8" />
+              </div>
+
+              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 text-xs font-black uppercase tracking-wider">
+                <Crown className="w-3.5 h-3.5" />
+                <span>Rank #{scheme.rank || 6} Matching Scheme</span>
+              </div>
+
+              <div className="space-y-2">
+                <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                  {scheme.name}
+                </h1>
+                <p className="text-xs sm:text-sm text-slate-300 max-w-lg mx-auto leading-relaxed">
+                  {scheme.lockMessage || "Free accounts can view the full details of only the first 5 schemes. Upgrade to Yojana Hunter Premium to unlock complete details, criteria breakdown, required documents, and application portals for this scheme."}
+                </p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-left space-y-2 text-xs text-slate-300">
+                <p className="font-bold text-white text-xs uppercase tracking-wider text-amber-300">
+                  Included with Yojana Hunter Premium:
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-2xs sm:text-xs">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>Access all matching schemes</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>Complete document checklists</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>Direct official portal links</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>Gemini AI Scheme Explanations</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                <button
+                  onClick={() => setSubscriptionModalOpen(true)}
+                  className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-black text-sm shadow-xl shadow-amber-500/25 flex items-center justify-center gap-2 transition transform hover:-translate-y-0.5 active:translate-y-0"
+                >
+                  <Crown className="w-4 h-4 text-slate-950" />
+                  <span>Unlock with Premium</span>
+                  <ArrowRight className="w-4 h-4 text-slate-950" />
+                </button>
+                <Link
+                  href="/schemes"
+                  className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs transition border border-white/10"
+                >
+                  Return to Free Schemes
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <SubscriptionModal
+          isOpen={subscriptionModalOpen}
+          onClose={() => setSubscriptionModalOpen(false)}
+          onSubscriptionUpdated={() => {
+            const active = authProfile || getStoredProfile();
+            getSchemeById(schemeId, active).then((data) => {
+              if (data) setScheme(data);
+            });
+          }}
+        />
       </main>
     );
   }
@@ -191,6 +316,111 @@ export default function SchemeDetailsPage() {
           )}
         </div>
 
+        {/* Gemini AI Grounded Explanation Card */}
+        <div className="p-6 bg-white border border-brand-border rounded-2xl shadow-card space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center text-brand-blue">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm sm:text-base font-extrabold text-brand-navy">
+                  Gemini AI Grounded Explanation
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  Plain-language summary grounded in official government source evidence
+                </p>
+              </div>
+            </div>
+
+            {!showAiCard ? (
+              <button
+                onClick={handleRequestAiExplanation}
+                disabled={loadingAi}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-brand-blue hover:bg-brand-blue-dark text-white rounded-xl text-xs font-bold shadow-xs transition"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Explain in Simple Terms</span>
+              </button>
+            ) : (
+              <button
+                onClick={handleRequestAiExplanation}
+                disabled={loadingAi}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition"
+              >
+                <Sparkles className={`w-3.5 h-3.5 ${loadingAi ? "animate-spin" : ""}`} />
+                <span>Regenerate</span>
+              </button>
+            )}
+          </div>
+
+          {showAiCard && (
+            <div className="space-y-3 pt-3 border-t border-slate-100">
+              {loadingAi ? (
+                <div className="py-6 flex flex-col items-center justify-center space-y-2">
+                  <Loader2 className="w-6 h-6 text-brand-blue animate-spin" />
+                  <p className="text-xs font-medium text-slate-500">
+                    Consulting Gemini model with Google Search Grounding citations...
+                  </p>
+                </div>
+              ) : aiExplanation ? (
+                <div className="space-y-3">
+                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-xs sm:text-sm text-slate-700 leading-relaxed whitespace-pre-line font-medium">
+                    {aiExplanation.explanation}
+                  </div>
+
+                  {/* Mode and Citations */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <span className="text-[10px] text-slate-500 font-mono bg-slate-100 px-2 py-0.5 rounded">
+                      Source: {aiExplanation.mode === "gemini_grounded" ? "Gemini 2.5 (Search Grounded)" : aiExplanation.mode === "gemini_structured" ? "Gemini 2.5 (Structured)" : "Deterministic Official Summary"}
+                    </span>
+
+                    {aiExplanation.citations && aiExplanation.citations.length > 0 && (
+                      <span className="text-[10px] font-bold text-brand-blue flex items-center gap-1">
+                        <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                        {aiExplanation.citations.length} Official Citations Verified
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Citations List if available */}
+                  {aiExplanation.citations && aiExplanation.citations.length > 0 && (
+                    <div className="p-3 bg-blue-50/50 rounded-xl border border-blue-100 space-y-1.5">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                        Official Grounding Sources:
+                      </div>
+                      <div className="space-y-1">
+                        {aiExplanation.citations.map((cite, i) => (
+                          <div key={i} className="flex items-center justify-between text-xs">
+                            <span className="font-semibold text-slate-700 truncate max-w-sm">
+                              {cite.source_title}
+                            </span>
+                            {cite.source_url && (
+                              <a
+                                href={cite.source_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-brand-blue text-[11px] font-bold hover:underline flex items-center gap-0.5"
+                              >
+                                <span>Verify Source</span>
+                                <ExternalLink className="w-2.5 h-2.5" />
+                              </a>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <p className="text-[10px] text-slate-400 italic">
+                    Disclaimer: AI summaries are generated to explain eligibility rules simply. Scheme eligibility is determined deterministically from verified rules.
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          )}
+        </div>
+
         {/* Benefits Card */}
         <div className="p-6 bg-white rounded-2xl border border-brand-border shadow-card space-y-3">
           <h2 className="text-base sm:text-lg font-extrabold text-brand-navy">
@@ -268,6 +498,50 @@ export default function SchemeDetailsPage() {
                   <span>Update your citizen profile now</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
+              </div>
+            </div>
+          )}
+
+          {/* Detailed Criteria Comparison Breakdown Table */}
+          {scheme.criteria && scheme.criteria.length > 0 && (
+            <div className="space-y-2 pt-3 border-t border-slate-100">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                <Layers className="w-4 h-4 text-brand-blue" />
+                <span>Eligibility Criteria Comparison ({scheme.criteria.length})</span>
+              </h3>
+              <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold">
+                    <tr>
+                      <th className="py-2.5 px-3">Criterion</th>
+                      <th className="py-2.5 px-3">Scheme Condition</th>
+                      <th className="py-2.5 px-3">Your Profile Value</th>
+                      <th className="py-2.5 px-3 text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {scheme.criteria.map((c, idx) => (
+                      <tr key={c.id || idx} className="hover:bg-slate-50/50">
+                        <td className="py-2.5 px-3 font-semibold text-slate-800">{c.name}</td>
+                        <td className="py-2.5 px-3 text-slate-600">{c.condition}</td>
+                        <td className="py-2.5 px-3 font-medium text-slate-700">{c.userValue || "Not Provided"}</td>
+                        <td className="py-2.5 px-3 text-center">
+                          {c.passed ? (
+                            <span className="inline-flex items-center gap-1 text-2xs font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              <span>Passed</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-2xs font-extrabold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
+                              <XCircle className="w-3 h-3 text-rose-600" />
+                              <span>Failed</span>
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
@@ -352,22 +626,14 @@ export default function SchemeDetailsPage() {
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
-          <a
-            href={scheme.officialUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full sm:w-1/2 py-3.5 px-6 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-center text-sm transition"
-          >
-            Official Guidelines
-          </a>
-          {scheme.applicationUrl ? (
+        {/* Action Button */}
+        <div className="pt-2">
+          {scheme.applicationUrl || scheme.officialUrl ? (
             <a
-              href={scheme.applicationUrl}
+              href={scheme.applicationUrl || scheme.officialUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full sm:w-1/2 py-3.5 px-6 rounded-xl bg-brand-blue hover:bg-brand-blue-dark text-white font-extrabold text-center text-sm shadow-md transition flex items-center justify-center gap-2"
+              className="w-full py-3.5 px-6 rounded-xl bg-brand-blue hover:bg-brand-blue-dark text-white font-extrabold text-center text-sm shadow-md transition flex items-center justify-center gap-2"
             >
               <span>Apply on Official Portal</span>
               <ExternalLink className="w-4 h-4" />
@@ -375,7 +641,7 @@ export default function SchemeDetailsPage() {
           ) : (
             <button
               onClick={() => router.push("/action-plan")}
-              className="w-full sm:w-1/2 py-3.5 px-6 rounded-xl bg-brand-blue hover:bg-brand-blue-dark text-white font-extrabold text-center text-sm shadow-md transition"
+              className="w-full py-3.5 px-6 rounded-xl bg-brand-blue hover:bg-brand-blue-dark text-white font-extrabold text-center text-sm shadow-md transition"
             >
               Start Application
             </button>
@@ -383,5 +649,13 @@ export default function SchemeDetailsPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function SchemeDetailsPage() {
+  return (
+    <ProtectedRoute>
+      <SchemeDetailsContent />
+    </ProtectedRoute>
   );
 }

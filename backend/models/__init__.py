@@ -35,6 +35,7 @@ class User(Base):
     interview_sessions = relationship("InterviewSession", back_populates="user")
     saved_schemes = relationship("SavedScheme", back_populates="user", cascade="all, delete-orphan")
     password_resets = relationship("PasswordResetToken", back_populates="user", cascade="all, delete-orphan")
+    subscription_requests = relationship("SubscriptionRequest", back_populates="user", cascade="all, delete-orphan", foreign_keys="SubscriptionRequest.user_id", order_by="SubscriptionRequest.requested_at.desc()")
 
     def to_dict(self):
         return {
@@ -74,6 +75,7 @@ class Profile(Base):
     disability_type = Column(String(150), nullable=True)
     is_tax_payer = Column(Boolean, default=False)
     is_govt_employee = Column(Boolean, default=False)
+    employment_status = Column(String(100), nullable=True)
     preferred_language = Column(String(20), default="en")
     completeness_percent = Column(Integer, default=0)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
@@ -84,33 +86,55 @@ class Profile(Base):
         return {
             "id": self.id,
             "userId": self.user_id,
+            "user_id": self.user_id,
             "name": self.full_name or "Citizen",
+            "fullName": self.full_name or "Citizen",
+            "full_name": self.full_name or "Citizen",
             "avatarUrl": self.avatar_url,
+            "avatar_url": self.avatar_url,
             "age": self.age or 0,
             "gender": self.gender,
             "occupation": self.occupation or "",
+            "employmentStatus": self.employment_status or "",
+            "employment_status": self.employment_status or "",
             "annualIncome": self.annual_income or "< 1 Lakh",
+            "annual_income": self.annual_income or "< 1 Lakh",
             "incomeNumeric": self.income_numeric,
+            "income_numeric": self.income_numeric,
             "education": self.education or "",
             "state": self.state or "",
             "district": self.district or "",
             "category": self.category or "General",
             "fatherName": self.father_name or "",
+            "father_name": self.father_name or "",
             "dateOfBirth": self.date_of_birth or "",
+            "date_of_birth": self.date_of_birth or "",
             "landHoldingAcres": self.land_holding_acres,
+            "land_holding_acres": self.land_holding_acres,
             "isDisabled": self.is_disabled,
+            "is_disabled": self.is_disabled,
             "isFarmer": self.is_farmer or False,
+            "is_farmer": self.is_farmer or False,
             "isStudent": self.is_student or False,
+            "is_student": self.is_student or False,
             "course": self.course or "",
             "institution": self.institution or "",
             "hasBusiness": self.has_business or False,
+            "has_business": self.has_business or False,
             "businessType": self.business_type or "",
+            "business_type": self.business_type or "",
             "disabilityType": self.disability_type or "",
+            "disability_type": self.disability_type or "",
             "isTaxPayer": self.is_tax_payer or False,
+            "is_tax_payer": self.is_tax_payer or False,
             "isGovtEmployee": self.is_govt_employee or False,
+            "is_govt_employee": self.is_govt_employee or False,
             "language": self.preferred_language or "en",
+            "preferred_language": self.preferred_language or "en",
             "completenessPercent": self.completeness_percent or 0,
+            "completeness_percent": self.completeness_percent or 0,
             "updatedAt": self.updated_at.isoformat() if self.updated_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
 
 class ConsentRecord(Base):
@@ -150,6 +174,82 @@ class AuditLog(Base):
 # 2. SCHEMES & KNOWLEDGE DOMAIN
 # ==========================================
 
+class DiscoveryJob(Base):
+    __tablename__ = "discovery_jobs"
+    id = Column(Integer, primary_key=True, index=True)
+    job_id = Column(String(64), unique=True, index=True, nullable=False)
+    status = Column(String(50), default="queued", index=True)  # queued, running, completed, completed_with_errors, failed, cancelled
+    query_count = Column(Integer, default=0)
+    category_count = Column(Integer, default=0)
+    discovered_count = Column(Integer, default=0)
+    created_count = Column(Integer, default=0)
+    updated_count = Column(Integer, default=0)
+    duplicate_count = Column(Integer, default=0)
+    skipped_count = Column(Integer, default=0)
+    rejected_count = Column(Integer, default=0)
+    failed_count = Column(Integer, default=0)
+    parameters = Column(JSON, nullable=True)
+    error_summary = Column(Text, nullable=True)
+    started_at = Column(DateTime, nullable=True)
+    finished_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_by_admin_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    creator = relationship("User", foreign_keys=[created_by_admin_id])
+    logs = relationship("DiscoveryJobLog", back_populates="job", cascade="all, delete-orphan", order_by="DiscoveryJobLog.timestamp.desc()")
+    discovered_schemes = relationship("Scheme", back_populates="discovery_job", foreign_keys="Scheme.discovery_job_id")
+
+    def to_dict(self, include_logs: bool = False):
+        data = {
+            "id": self.id,
+            "jobId": self.job_id,
+            "status": self.status,
+            "queryCount": self.query_count or 0,
+            "categoryCount": self.category_count or 0,
+            "discoveredCount": self.discovered_count or 0,
+            "createdCount": self.created_count or 0,
+            "insertedCount": self.created_count or 0,
+            "updatedCount": self.updated_count or 0,
+            "duplicateCount": self.duplicate_count or 0,
+            "skippedCount": self.skipped_count or 0,
+            "rejectedCount": self.rejected_count or 0,
+            "failedCount": self.failed_count or 0,
+            "parameters": self.parameters or {},
+            "errorSummary": self.error_summary,
+            "startedAt": self.started_at.isoformat() if self.started_at else None,
+            "finishedAt": self.finished_at.isoformat() if self.finished_at else None,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+            "createdByAdminId": self.created_by_admin_id,
+        }
+        if include_logs and self.logs:
+            data["logs"] = [l.to_dict() for l in self.logs]
+        return data
+
+class DiscoverySchedule(Base):
+    __tablename__ = "discovery_schedules"
+    id = Column(Integer, primary_key=True, index=True)
+    is_enabled = Column(Boolean, default=False)
+    frequency_hours = Column(Integer, default=24)
+    parameters = Column(JSON, nullable=True)
+    last_run_at = Column(DateTime, nullable=True)
+    next_run_at = Column(DateTime, nullable=True)
+    last_job_id = Column(String(64), nullable=True)
+    last_status = Column(String(50), nullable=True)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "isEnabled": bool(self.is_enabled),
+            "frequencyHours": self.frequency_hours or 24,
+            "parameters": self.parameters or {},
+            "lastRunAt": self.last_run_at.isoformat() if self.last_run_at else None,
+            "nextRunAt": self.next_run_at.isoformat() if self.next_run_at else None,
+            "lastJobId": self.last_job_id,
+            "lastStatus": self.last_status,
+            "updatedAt": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
 class Scheme(Base):
     __tablename__ = "schemes"
     id = Column(Integer, primary_key=True, index=True)
@@ -184,11 +284,19 @@ class Scheme(Base):
     is_business_only = Column(Boolean, default=False)
     is_disability_required = Column(Boolean, default=False)
     exclusions = Column(JSON, nullable=True)  # List of strings e.g. ["Income tax payer"]
+    target_occupations = Column(JSON, nullable=True)  # List of strings e.g. ["Student", "Farmer"]
+    target_beneficiary_groups = Column(JSON, nullable=True)  # List of strings e.g. ["Students", "Youth"]
+    eligible_states = Column(JSON, nullable=True)  # List of strings e.g. ["All India"] or ["Maharashtra"]
     start_date = Column(DateTime, nullable=True)
     end_date = Column(DateTime, nullable=True)
     is_active = Column(Boolean, default=True, index=True)
     source_verification_status = Column(String(100), default="verified_live")
     last_fetched_at = Column(DateTime, default=datetime.datetime.utcnow)
+    verification_notes = Column(Text, nullable=True)
+    grounding_metadata = Column(JSON, nullable=True)
+    discovery_job_id = Column(Integer, ForeignKey("discovery_jobs.id"), nullable=True)
+    admin_review_status = Column(String(50), default="published", index=True)  # pending_review, approved, rejected, needs_verification
+    rejection_reason = Column(Text, nullable=True)
     created_by_admin_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     updated_by_admin_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
@@ -199,6 +307,9 @@ class Scheme(Base):
     source_documents = relationship("SourceDocument", back_populates="scheme", cascade="all, delete-orphan")
     change_logs = relationship("SchemeChangeLog", back_populates="scheme", cascade="all, delete-orphan")
     eligibility_results = relationship("EligibilityResult", back_populates="scheme")
+    discovery_job = relationship("DiscoveryJob", back_populates="discovered_schemes", foreign_keys=[discovery_job_id])
+    citations = relationship("SchemeCitation", back_populates="scheme", cascade="all, delete-orphan")
+    review_history = relationship("SchemeReviewHistory", back_populates="scheme", cascade="all, delete-orphan", order_by="SchemeReviewHistory.timestamp.desc()")
 
     def to_dict(self, include_rules: bool = True):
         data = {
@@ -212,6 +323,7 @@ class Scheme(Base):
             "department": self.department or "Government of India",
             "level": self.level or "Central Scheme",
             "state": self.state or "All India",
+            "eligibleStates": self.eligible_states or ([self.state] if self.state else ["All India"]),
             "benefit": self.benefits,
             "benefits": self.benefits,
             "officialUrl": self.official_source_url,
@@ -229,6 +341,8 @@ class Scheme(Base):
             "ageMax": self.age_max,
             "incomeMax": self.income_max,
             "occupation": self.occupation,
+            "targetOccupations": self.target_occupations or ([self.occupation] if self.occupation else []),
+            "targetBeneficiaryGroups": self.target_beneficiary_groups or [],
             "education": self.education,
             "gender": self.gender or "All",
             "socialCategory": self.social_category or "All",
@@ -238,6 +352,12 @@ class Scheme(Base):
             "isBusinessOnly": bool(self.is_business_only),
             "isDisabilityRequired": bool(self.is_disability_required),
             "exclusions": self.exclusions or [],
+            "verificationNotes": self.verification_notes or "",
+            "groundingMetadata": self.grounding_metadata or {},
+            "discoveryJobId": self.discovery_job_id,
+            "adminReviewStatus": self.admin_review_status or "published",
+            "rejectionReason": self.rejection_reason,
+            "citations": [c.to_dict() for c in self.citations] if self.citations else [],
             "createdByAdminId": self.created_by_admin_id,
             "updatedByAdminId": self.updated_by_admin_id,
             "startDate": self.start_date.isoformat() if self.start_date else None,
@@ -315,6 +435,77 @@ class SchemeChangeLog(Base):
 
     scheme = relationship("Scheme", back_populates="change_logs")
 
+class DiscoveryJobLog(Base):
+    __tablename__ = "discovery_job_logs"
+    id = Column(Integer, primary_key=True, index=True)
+    job_id = Column(Integer, ForeignKey("discovery_jobs.id"), nullable=False, index=True)
+    level = Column(String(20), default="INFO")  # INFO, WARNING, ERROR, SUCCESS
+    message = Column(Text, nullable=False)
+    details = Column(JSON, nullable=True)
+    timestamp = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+
+    job = relationship("DiscoveryJob", back_populates="logs")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "jobId": self.job_id,
+            "level": self.level,
+            "message": self.message,
+            "details": self.details or {},
+            "timestamp": self.timestamp.isoformat() if self.timestamp else None,
+        }
+
+class SchemeCitation(Base):
+    __tablename__ = "scheme_citations"
+    id = Column(Integer, primary_key=True, index=True)
+    scheme_id = Column(Integer, ForeignKey("schemes.id"), nullable=False, index=True)
+    source_title = Column(String(500), nullable=True)
+    source_url = Column(String(1000), nullable=False)
+    excerpt = Column(Text, nullable=True)
+    confidence_score = Column(Float, default=1.0)
+    verified_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    scheme = relationship("Scheme", back_populates="citations")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "schemeId": self.scheme_id,
+            "sourceTitle": self.source_title or "",
+            "sourceUrl": self.source_url,
+            "excerpt": self.excerpt or "",
+            "confidenceScore": self.confidence_score or 1.0,
+            "verifiedAt": self.verified_at.isoformat() if self.verified_at else None,
+        }
+
+class SchemeReviewHistory(Base):
+    __tablename__ = "scheme_review_histories"
+    id = Column(Integer, primary_key=True, index=True)
+    scheme_id = Column(Integer, ForeignKey("schemes.id"), nullable=False, index=True)
+    admin_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    action = Column(String(50), nullable=False)  # approve, reject, reverify, edit
+    reason = Column(Text, nullable=True)
+    previous_data = Column(JSON, nullable=True)
+    new_data = Column(JSON, nullable=True)
+    timestamp = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+
+    scheme = relationship("Scheme", back_populates="review_history")
+    admin = relationship("User")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "schemeId": self.scheme_id,
+            "adminId": self.admin_id,
+            "adminEmail": self.admin.email if self.admin else None,
+            "action": self.action,
+            "reason": self.reason,
+            "previousData": self.previous_data or {},
+            "newData": self.new_data or {},
+            "timestamp": self.timestamp.isoformat() if self.timestamp else None,
+        }
+
 # ==========================================
 # 3. CITIZEN JOURNEY DOMAIN
 # ==========================================
@@ -384,6 +575,79 @@ class PasswordResetToken(Base):
 
     def is_valid(self):
         return (not self.used) and (self.expires_at > datetime.datetime.utcnow())
+
+# ==========================================
+# 3.5 SUBSCRIPTIONS & CITIZEN ACCESS TIERS
+# ==========================================
+
+class SubscriptionRequest(Base):
+    __tablename__ = "subscription_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    plan_id = Column(String(50), nullable=False)          # monthly, two_months, yearly
+    plan_name = Column(String(100), nullable=False)        # Monthly Access, 2 Months Standard, Yearly Premium Pass
+    amount = Column(Float, nullable=False)                # 50.0, 100.0, 500.0
+    currency = Column(String(10), default="INR")
+    duration_days = Column(Integer, nullable=False)       # 30, 60, 365
+    status = Column(String(50), default="pending", index=True)  # pending, approved, rejected, cancelled
+    rejection_reason = Column(Text, nullable=True)
+    admin_notes = Column(Text, nullable=True)
+    requested_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+    reviewed_at = Column(DateTime, nullable=True)
+    reviewed_by_admin_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    starts_at = Column(DateTime, nullable=True)
+    expires_at = Column(DateTime, nullable=True, index=True)
+    is_active = Column(Boolean, default=False, index=True)
+
+    user = relationship("User", back_populates="subscription_requests", foreign_keys=[user_id])
+    reviewed_by = relationship("User", foreign_keys=[reviewed_by_admin_id])
+
+    def to_dict(self, include_user=True):
+        now = datetime.datetime.utcnow()
+        is_currently_active = bool(self.status == "approved" and self.is_active and self.expires_at and self.expires_at > now)
+        data = {
+            "id": self.id,
+            "userId": self.user_id,
+            "planId": self.plan_id,
+            "planName": self.plan_name,
+            "amount": self.amount,
+            "currency": self.currency,
+            "durationDays": self.duration_days,
+            "status": self.status,
+            "rejectionReason": self.rejection_reason,
+            "adminNotes": self.admin_notes,
+            "requestedAt": self.requested_at.isoformat() if self.requested_at else None,
+            "reviewedAt": self.reviewed_at.isoformat() if self.reviewed_at else None,
+            "reviewedByAdminId": self.reviewed_by_admin_id,
+            "startsAt": self.starts_at.isoformat() if self.starts_at else None,
+            "expiresAt": self.expires_at.isoformat() if self.expires_at else None,
+            "isActive": is_currently_active,
+            "status": self.status.capitalize() if self.status else "Pending",
+            # snake_case aliases for backend/tests compatibility
+            "user_id": self.user_id,
+            "plan_id": self.plan_id,
+            "plan_name": self.plan_name,
+            "duration_days": self.duration_days,
+            "requested_at": self.requested_at.isoformat() if self.requested_at else None,
+            "starts_at": self.starts_at.isoformat() if self.starts_at else None,
+            "expires_at": self.expires_at.isoformat() if self.expires_at else None,
+            "is_active": is_currently_active,
+            "rejection_reason": self.rejection_reason,
+        }
+        if include_user and self.user:
+            profile = self.user.profile
+            u_name = profile.full_name if profile and profile.full_name else (self.user.email.split("@")[0].capitalize() if self.user.email else f"Citizen #{self.user.id}")
+            u_email = self.user.email or ""
+            data["userName"] = u_name
+            data["userEmail"] = u_email
+            data["user"] = {
+                "id": self.user.id,
+                "email": u_email,
+                "mobile": self.user.mobile,
+                "name": u_name
+            }
+        return data
 
 # ==========================================
 # 4. DOCUMENTS & APPLICATION DOMAIN

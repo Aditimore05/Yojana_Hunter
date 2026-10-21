@@ -28,10 +28,6 @@ interface Message {
 export const ChatbotWidget: React.FC = () => {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
-
-  if (pathname?.startsWith("/admin")) {
-    return null;
-  }
   const [language, setLanguage] = useState<"en" | "hi" | "mr">("en");
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -39,7 +35,7 @@ export const ChatbotWidget: React.FC = () => {
     {
       id: "m-0",
       sender: "bot",
-      text: "Hello! I am your Yojana Hunter Assistant. Ask me anything about government schemes, eligibility, certificates, or application drafting.",
+      text: "Hello! I am your Yojana Hunter Assistant. Ask me anything about using Yojana Hunter, finding government schemes, profile setup, checking eligibility, or application procedures.",
       time: "Just now",
     },
   ]);
@@ -51,6 +47,11 @@ export const ChatbotWidget: React.FC = () => {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, isOpen]);
+
+  // Don't render chatbot on admin panel (after all hooks are called)
+  if (pathname?.startsWith("/admin")) {
+    return null;
+  }
 
   const handleSend = async (textToSend?: string) => {
     const query = textToSend || input;
@@ -68,7 +69,8 @@ export const ChatbotWidget: React.FC = () => {
     setLoading(true);
 
     try {
-      const botReply = await sendChatMessage(query, language);
+      const historyContext = messages.map(m => ({ sender: m.sender, text: m.text }));
+      const botReply = await sendChatMessage(query, language, historyContext);
       const botMsg: Message = {
         id: `bot-${Date.now()}`,
         sender: "bot",
@@ -92,14 +94,14 @@ export const ChatbotWidget: React.FC = () => {
   };
 
   const handleQuickAction = (actionTitle: string) => {
-    if (actionTitle === "Compare Files") {
-      handleSend("How do I compare eligibility documents between schemes?");
-    } else if (actionTitle === "Upload Screenshot") {
-      handleSend("Can I upload a screenshot of my ration card or mark sheet?");
-    } else if (actionTitle === "Pricing & Demo") {
-      handleSend("Is Yojana Hunter free for citizens?");
-    } else if (actionTitle === "Customer Support") {
-      handleSend("How do I contact helpdesk for application rejection?");
+    if (actionTitle === "Student Schemes") {
+      handleSend("What schemes and education loans are available for students?");
+    } else if (actionTitle === "Farmer Schemes") {
+      handleSend("What schemes and subsidies are available for agricultural farmers?");
+    } else if (actionTitle === "Check Eligibility") {
+      handleSend("How do I check my eligibility for government welfare schemes?");
+    } else if (actionTitle === "Required Documents") {
+      handleSend("What official certificates and documents are needed to apply?");
     }
   };
 
@@ -173,32 +175,32 @@ export const ChatbotWidget: React.FC = () => {
           {/* Quick Action Grid (2x2) */}
           <div className="p-3 bg-slate-900/60 border-b border-slate-800/80 grid grid-cols-2 gap-2">
             <button
-              onClick={() => handleQuickAction("Compare Files")}
+              onClick={() => handleQuickAction("Student Schemes")}
               className="flex items-center gap-2 p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 text-xs text-slate-200 transition text-left border border-slate-700/50"
             >
               <Layers className="w-3.5 h-3.5 text-teal-400 shrink-0" />
-              <span className="truncate font-medium">Compare Files</span>
+              <span className="truncate font-medium">Student Schemes</span>
             </button>
             <button
-              onClick={() => handleQuickAction("Upload Screenshot")}
+              onClick={() => handleQuickAction("Farmer Schemes")}
               className="flex items-center gap-2 p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 text-xs text-slate-200 transition text-left border border-slate-700/50"
             >
-              <ImageIcon className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-              <span className="truncate font-medium">Upload Screenshot</span>
+              <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span className="truncate font-medium">Farmer Schemes</span>
             </button>
             <button
-              onClick={() => handleQuickAction("Pricing & Demo")}
+              onClick={() => handleQuickAction("Check Eligibility")}
+              className="flex items-center gap-2 p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 text-xs text-slate-200 transition text-left border border-slate-700/50"
+            >
+              <UserIcon className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+              <span className="truncate font-medium">Check Eligibility</span>
+            </button>
+            <button
+              onClick={() => handleQuickAction("Required Documents")}
               className="flex items-center gap-2 p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 text-xs text-slate-200 transition text-left border border-slate-700/50"
             >
               <Tag className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-              <span className="truncate font-medium">Pricing &amp; Demo</span>
-            </button>
-            <button
-              onClick={() => handleQuickAction("Customer Support")}
-              className="flex items-center gap-2 p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 text-xs text-slate-200 transition text-left border border-slate-700/50"
-            >
-              <Headphones className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-              <span className="truncate font-medium">Customer Support</span>
+              <span className="truncate font-medium">Required Documents</span>
             </button>
           </div>
 
@@ -221,7 +223,7 @@ export const ChatbotWidget: React.FC = () => {
                       : "bg-slate-800 text-slate-100 rounded-bl-none border border-slate-700"
                   }`}
                 >
-                  <p>{m.text}</p>
+                  <div className="whitespace-pre-wrap leading-relaxed">{m.text}</div>
                   <span className="block mt-1 text-[10px] text-slate-300 opacity-70 text-right">
                     {m.time}
                   </span>

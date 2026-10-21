@@ -30,7 +30,7 @@ function LoginFormContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const redirectUrl = searchParams.get("redirect") || "/dashboard";
+  const redirectUrl = searchParams.get("redirect") || "/";
 
   useEffect(() => {
     if (isAuthenticated) {

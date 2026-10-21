@@ -40,7 +40,7 @@ function RegisterFormContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const redirectUrl = searchParams.get("redirect") || "/dashboard";
+  const redirectUrl = searchParams.get("redirect") || "/";
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -423,7 +423,7 @@ function RegisterFormContent() {
               <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
               <div>
                 <h4 className="text-xs font-bold text-white">Smart Eligibility Profile</h4>
-                <p className="text-2xs text-slate-300 mt-0.5">Answer the 6 criteria once or conversational AI will guide you smoothly.</p>
+                <p className="text-2xs text-slate-300 mt-0.5">Answer the 7 criteria once (including gender) or conversational AI will guide you smoothly.</p>
               </div>
             </div>
           </div>

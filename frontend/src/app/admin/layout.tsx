@@ -13,7 +13,9 @@ import {
   User, 
   Menu, 
   X,
-  ChevronRight
+  ChevronRight,
+  Sparkles,
+  Crown
 } from "lucide-react";
 import { 
   isAdminLoggedIn, 
@@ -74,6 +76,12 @@ export default function AdminLayout({
       active: pathname === "/admin/dashboard",
     },
     {
+      name: "AI Scheme Discovery",
+      href: "/admin/discovery",
+      icon: Sparkles,
+      active: pathname === "/admin/discovery",
+    },
+    {
       name: "Manage Schemes",
       href: "/admin/schemes",
       icon: FileText,
@@ -84,6 +92,12 @@ export default function AdminLayout({
       href: "/admin/schemes/new",
       icon: PlusCircle,
       active: pathname === "/admin/schemes/new",
+    },
+    {
+      name: "Subscriptions",
+      href: "/admin/subscriptions",
+      icon: Crown,
+      active: pathname.startsWith("/admin/subscriptions"),
     },
   ];
 
@@ -108,10 +122,18 @@ export default function AdminLayout({
         </button>
       </div>
 
+      {/* Mobile Backdrop */}
+      {mobileSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-30 md:hidden backdrop-blur-xs transition-opacity"
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar Navigation */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-64 bg-brand-navy-dark text-white flex flex-col justify-between transition-transform duration-200 ease-in-out md:static md:translate-x-0 ${
-          mobileSidebarOpen ? "translate-x-0" : "-translate-x-0 hidden md:flex"
+        className={`fixed inset-y-0 left-0 z-40 w-64 bg-brand-navy-dark text-white flex flex-col justify-between transition-transform duration-200 ease-in-out md:translate-x-0 overflow-y-auto ${
+          mobileSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         }`}
       >
         <div className="p-6 space-y-6">
@@ -197,7 +219,7 @@ export default function AdminLayout({
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+      <div className="flex-1 flex flex-col min-w-0 md:pl-64">
         {/* Top Header Bar on desktop */}
         <header className="hidden md:flex h-16 bg-white border-b border-brand-border px-8 items-center justify-between sticky top-0 z-20">
           <div className="flex items-center gap-3">

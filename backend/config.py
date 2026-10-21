@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 load_dotenv()
 
 class Config:
@@ -28,5 +29,13 @@ class Config:
 
     UPLOAD_DIR: str = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
     MAX_CONTENT_LENGTH: int = 16 * 1024 * 1024  # 16 MB max file upload
+
+    # Gemini AI Configuration (Official Google Gen AI SDK)
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "").strip()
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite").strip()
+    GEMINI_MAX_RETRIES: int = int(os.getenv("GEMINI_MAX_RETRIES", "3"))
+    GEMINI_TIMEOUT_SECONDS: int = int(os.getenv("GEMINI_TIMEOUT_SECONDS", "30"))
+    DISCOVERY_MAX_REQUESTS: int = int(os.getenv("DISCOVERY_MAX_REQUESTS", "10"))
+    DISCOVERY_SCHEDULE_HOURS: int = int(os.getenv("DISCOVERY_SCHEDULE_HOURS", "24"))
 
 config = Config()

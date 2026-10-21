@@ -38,26 +38,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (checkIsLoggedIn()) {
         const stored = getStoredUser();
         const storedProf = getStoredProfile();
-        if (stored) {
+        if (stored && stored.role !== 'admin') {
           setUser(stored);
           setProfile(storedProf);
+        } else {
+          setUser(null);
+          setProfile(null);
         }
 
         try {
           const remote = await getCurrentUser();
-          if (remote.user) {
+          if (remote.user && remote.user.role !== 'admin') {
             setUser(remote.user);
             if (remote.profile) {
               setProfile(remote.profile);
             }
           } else {
             setUser(null);
+            setProfile(null);
           }
         } catch {
-          // If network is offline, keep stored session
+          // If network is offline, keep stored session if valid citizen
         }
       } else {
         setUser(null);
+        setProfile(null);
       }
       setLoading(false);
     }
@@ -69,6 +74,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setLoading(true);
     const res = await apiLogin(credentials);
     if (res.success && res.data) {
+      if (res.data.user.role === 'admin') {
+        setLoading(false);
+        return { success: false, error: 'Administrator accounts must sign in via the Admin Portal.' };
+      }
       setUser(res.data.user);
       if (res.data.profile) {
         setProfile(res.data.profile);
@@ -99,13 +108,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setLoading(true);
     await apiLogout();
     setUser(null);
+    setProfile(null);
     setLoading(false);
   };
 
   const refreshUser = async () => {
     if (checkIsLoggedIn()) {
       const remote = await getCurrentUser();
-      if (remote.user) {
+      if (remote.user && remote.user.role !== 'admin') {
         setUser(remote.user);
         if (remote.profile) {
           setProfile(remote.profile);
@@ -119,13 +129,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     saveStoredProfile(newProfile);
   };
 
+  const isCitizenAuthenticated = Boolean(user && user.role !== "admin");
+
   return (
     <AuthContext.Provider
       value={{
         user,
         profile,
         loading,
-        isAuthenticated: Boolean(user),
+        isAuthenticated: isCitizenAuthenticated,
         login,
         register,
         logout,

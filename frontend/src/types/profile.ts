@@ -28,6 +28,7 @@ export interface UserProfile {
   disabilityType?: string;
   isTaxPayer?: boolean;
   isGovtEmployee?: boolean;
+  employmentStatus?: string;
 }
 
 export interface InterviewQuestion {

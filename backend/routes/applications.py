@@ -1,12 +1,14 @@
 import datetime
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 from database import SessionLocal
 from models import Application, Scheme, Profile, User
+from utils.auth import token_required
 
 applications_bp = Blueprint("applications", __name__)
 
 @applications_bp.route("", methods=["GET"])
 @applications_bp.route("/", methods=["GET"])
+@token_required
 def list_applications():
     db = SessionLocal()
     try:
@@ -18,6 +20,7 @@ def list_applications():
         db.close()
 
 @applications_bp.route("/draft", methods=["GET"])
+@token_required
 def get_draft():
     db = SessionLocal()
     try:
@@ -53,6 +56,7 @@ def get_draft():
         db.close()
 
 @applications_bp.route("/draft", methods=["PUT"])
+@token_required
 def update_draft():
     db = SessionLocal()
     try:
@@ -94,6 +98,7 @@ def update_draft():
         db.close()
 
 @applications_bp.route("/submit", methods=["POST"])
+@token_required
 def submit_application():
     db = SessionLocal()
     try:

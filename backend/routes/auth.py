@@ -109,26 +109,50 @@ def register_user():
         db.add(new_user)
         db.flush()
 
-        # 5. Create associated profile (with optional preserved anonymous interview answers)
+        # 5. Create associated profile (with optional preserved profile answers)
+        occ = (profile_data.get("occupation") or "").strip() or None
+        occ_l = (str(occ) or "").lower()
+        is_farmer_in_occ = bool("farmer" in occ_l or "kisan" in occ_l or "agri" in occ_l or "cultivat" in occ_l)
+        is_student_in_occ = bool("student" in occ_l)
+        is_biz_in_occ = bool(any(b in occ_l for b in ["business", "entrepreneur", "self-employed", "artisan", "shopkeeper", "trader"]))
+
+        if is_student_in_occ and not is_farmer_in_occ:
+            is_student = True
+            is_farmer = False
+            has_business = False
+        elif is_farmer_in_occ and not is_student_in_occ:
+            is_farmer = True
+            is_student = False
+            has_business = False
+        elif is_biz_in_occ and not is_farmer_in_occ and not is_student_in_occ:
+            has_business = True
+            is_farmer = False
+            is_student = False
+        else:
+            is_farmer = bool(profile_data.get("isFarmer") or profile_data.get("is_farmer") or is_farmer_in_occ)
+            is_student = bool(profile_data.get("isStudent") or profile_data.get("is_student") or is_student_in_occ)
+            has_business = bool(profile_data.get("hasBusiness") or profile_data.get("has_business") or is_biz_in_occ)
+
         new_profile = Profile(
             user_id=new_user.id,
             full_name=name,
             preferred_language=profile_data.get("language") or "en",
-            occupation=profile_data.get("occupation") or "Student",
-            annual_income=profile_data.get("annualIncome") or profile_data.get("annual_income") or "< 1 Lakh",
-            income_numeric=float(profile_data.get("incomeNumeric") or 95000),
-            age=int(profile_data.get("age") or 21),
-            gender=profile_data.get("gender") or "Female",
-            state=profile_data.get("state") or "Maharashtra",
-            district=profile_data.get("district") or "Nashik",
-            education=profile_data.get("education") or "B.E. (Final Year)",
+            occupation=occ,
+            annual_income=profile_data.get("annualIncome") or profile_data.get("annual_income") or None,
+            income_numeric=float(profile_data["incomeNumeric"]) if profile_data.get("incomeNumeric") is not None else None,
+            age=int(profile_data["age"]) if profile_data.get("age") else None,
+            gender=profile_data.get("gender") or None,
+            state=profile_data.get("state") or None,
+            district=profile_data.get("district") or None,
+            education=profile_data.get("education") or None,
             category=profile_data.get("category") or "General",
-            father_name=profile_data.get("fatherName") or profile_data.get("father_name") or "",
-            date_of_birth=profile_data.get("dateOfBirth") or profile_data.get("date_of_birth") or "",
-            is_farmer=bool(profile_data.get("isFarmer") or False),
-            is_student=bool(profile_data.get("isStudent") or True),
-            has_business=bool(profile_data.get("hasBusiness") or False),
-            is_disabled=bool(profile_data.get("isDisabled") or False),
+            father_name=profile_data.get("fatherName") or profile_data.get("father_name") or None,
+            date_of_birth=profile_data.get("dateOfBirth") or profile_data.get("date_of_birth") or None,
+            land_holding_acres=float(profile_data.get("landHoldingAcres") or profile_data.get("land_holding_acres") or 0.0),
+            is_farmer=is_farmer,
+            is_student=is_student,
+            has_business=has_business,
+            is_disabled=bool(profile_data.get("isDisabled") or profile_data.get("is_disabled") or False),
             updated_at=datetime.datetime.utcnow()
         )
         new_profile.completeness_percent = calculate_completeness(new_profile)

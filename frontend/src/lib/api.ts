@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:5000/api";
+const API_BASE_URL = typeof window !== 'undefined' ? '/api' : (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:5000/api');
 
 export const AUTH_TOKEN_KEY = "yojana_auth_token";
 export const AUTH_USER_KEY = "yojana_auth_user";
@@ -19,7 +19,7 @@ export interface ApiResponse<T> {
 }
 
 export async function apiFetch<T>(endpoint: string, options: RequestOptions = {}): Promise<T | null> {
-  const { timeoutMs = 8000, ...customConfig } = options;
+  const { timeoutMs = 25000, ...customConfig } = options;
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
 

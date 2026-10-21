@@ -14,7 +14,8 @@ import {
   LayoutDashboard, 
   LogOut, 
   Sparkles,
-  ShieldCheck
+  ShieldCheck,
+  FileText
 } from "lucide-react";
 import { getStoredLanguage, saveStoredLanguage } from "@/lib/storage";
 import { useAuth } from "@/context/AuthContext";
@@ -99,38 +100,61 @@ export const AppHeader: React.FC = () => {
           >
             Home
           </Link>
-          <Link
-            href="/schemes"
-            className={`text-sm font-medium transition ${
-              pathname === "/schemes" ? "text-brand-blue font-semibold" : "text-slate-600 hover:text-brand-navy"
-            }`}
-          >
-            Schemes
-          </Link>
-          <Link
-            href="/dashboard"
-            className={`text-sm font-medium transition ${
-              pathname === "/dashboard" ? "text-brand-blue font-semibold" : "text-slate-600 hover:text-brand-navy"
-            }`}
-          >
-            Dashboard
-          </Link>
-          <Link
-            href="/documents"
-            className={`text-sm font-medium transition ${
-              pathname === "/documents" ? "text-brand-blue font-semibold" : "text-slate-600 hover:text-brand-navy"
-            }`}
-          >
-            Documents
-          </Link>
-          <Link
-            href="/action-plan"
-            className={`text-sm font-medium transition ${
-              pathname === "/action-plan" ? "text-brand-blue font-semibold" : "text-slate-600 hover:text-brand-navy"
-            }`}
-          >
-            Action Plan
-          </Link>
+          {isAuthenticated && (
+            <>
+              <Link
+                href="/onboarding"
+                className={`text-sm font-bold transition px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-xs ${
+                  pathname === "/onboarding" || pathname === "/interview"
+                    ? "bg-brand-blue text-white"
+                    : "bg-blue-50 text-brand-blue hover:bg-blue-100 border border-blue-200"
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-teal-400" />
+                <span>Start Now</span>
+              </Link>
+              <Link
+                href="/schemes"
+                className={`text-sm font-medium transition ${
+                  pathname === "/schemes" ? "text-brand-blue font-semibold" : "text-slate-600 hover:text-brand-navy"
+                }`}
+              >
+                Schemes
+              </Link>
+              <Link
+                href="/dashboard"
+                className={`text-sm font-medium transition ${
+                  pathname === "/dashboard" ? "text-brand-blue font-semibold" : "text-slate-600 hover:text-brand-navy"
+                }`}
+              >
+                Dashboard
+              </Link>
+              <Link
+                href="/saved-schemes"
+                className={`text-sm font-medium transition ${
+                  pathname === "/saved-schemes" ? "text-brand-blue font-semibold" : "text-slate-600 hover:text-brand-navy"
+                }`}
+              >
+                My Schemes
+              </Link>
+              <Link
+                href="/applications"
+                className={`text-sm font-medium transition ${
+                  pathname === "/applications" ? "text-brand-blue font-semibold" : "text-slate-600 hover:text-brand-navy"
+                }`}
+              >
+                Applications
+              </Link>
+              <Link
+                href="/profile"
+                className={`text-sm font-medium transition ${
+                  pathname === "/profile" ? "text-brand-blue font-semibold" : "text-slate-600 hover:text-brand-navy"
+                }`}
+              >
+                My Profile
+              </Link>
+            </>
+          )}
         </nav>
 
         {/* Right Controls */}
@@ -177,15 +201,17 @@ export const AppHeader: React.FC = () => {
             )}
           </div>
 
-          {/* Notification Bell */}
-          <Link
-            href="/dashboard"
-            className="relative p-2 text-slate-500 hover:text-brand-navy rounded-lg hover:bg-slate-100 transition"
-            title="Notifications"
-          >
-            <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"></span>
-          </Link>
+          {/* Notification Bell (Only for logged-in citizens) */}
+          {isAuthenticated && (
+            <Link
+              href="/dashboard"
+              className="relative p-2 text-slate-500 hover:text-brand-navy rounded-lg hover:bg-slate-100 transition"
+              title="Notifications"
+            >
+              <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"></span>
+            </Link>
+          )}
 
           {/* Authenticated User Menu or Guest Sign In/Register */}
           {isAuthenticated ? (
@@ -242,7 +268,16 @@ export const AppHeader: React.FC = () => {
                       className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-blue-50 hover:text-brand-blue transition"
                     >
                       <Bookmark className="w-3.5 h-3.5 text-slate-400" />
-                      <span>Saved Schemes</span>
+                      <span>My Schemes</span>
+                    </Link>
+
+                    <Link
+                      href="/applications"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-blue-50 hover:text-brand-blue transition"
+                    >
+                      <FileText className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Applications</span>
                     </Link>
                   </div>
 
@@ -261,6 +296,14 @@ export const AppHeader: React.FC = () => {
             </div>
           ) : (
             <div className="flex items-center gap-2">
+              <Link
+                href="/admin/login"
+                className="hidden sm:inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-amber-700 px-2.5 py-1.5 rounded-lg border border-transparent hover:border-slate-200 transition"
+                title="Administrator Portal"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-amber-500" />
+                <span>Admin</span>
+              </Link>
               <Link
                 href="/login"
                 className="text-xs sm:text-sm font-bold text-slate-700 hover:text-brand-blue px-3 py-1.5 rounded-lg transition"
@@ -296,22 +339,31 @@ export const AppHeader: React.FC = () => {
           >
             Home
           </Link>
-          <Link
-            href="/schemes"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
-          >
-            Schemes Matching
-          </Link>
-          <Link
-            href="/dashboard"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
-          >
-            Dashboard
-          </Link>
+
           {isAuthenticated && (
             <>
+              <Link
+                href="/onboarding"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-bold text-brand-blue bg-blue-50 border border-blue-200"
+              >
+                <Sparkles className="w-4 h-4 text-teal-500" />
+                <span>Start Now (Enter Details)</span>
+              </Link>
+              <Link
+                href="/schemes"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Schemes
+              </Link>
+              <Link
+                href="/dashboard"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Dashboard
+              </Link>
               <Link
                 href="/profile"
                 onClick={() => setMobileMenuOpen(false)}
@@ -324,24 +376,24 @@ export const AppHeader: React.FC = () => {
                 onClick={() => setMobileMenuOpen(false)}
                 className="block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
-                Saved Schemes
+                My Schemes
+              </Link>
+              <Link
+                href="/applications"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Applications
+              </Link>
+              <Link
+                href="/action-plan"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Action Plan
               </Link>
             </>
           )}
-          <Link
-            href="/documents"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
-          >
-            Documents
-          </Link>
-          <Link
-            href="/action-plan"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
-          >
-            Action Plan
-          </Link>
 
           <div className="pt-2 border-t border-brand-border">
             {isAuthenticated ? (
@@ -352,20 +404,30 @@ export const AppHeader: React.FC = () => {
                 Sign Out ({displayName})
               </button>
             ) : (
-              <div className="flex gap-2 pt-1">
+              <div className="space-y-2 pt-1">
+                <div className="flex gap-2">
+                  <Link
+                    href="/login"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex-1 text-center py-2 px-3 rounded-lg text-sm font-bold text-slate-700 bg-slate-100 hover:bg-slate-200"
+                  >
+                    Sign In
+                  </Link>
+                  <Link
+                    href="/register"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex-1 text-center py-2 px-3 rounded-lg text-sm font-bold text-white bg-brand-blue hover:bg-brand-blue-dark"
+                  >
+                    Register
+                  </Link>
+                </div>
                 <Link
-                  href="/login"
+                  href="/admin/login"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex-1 text-center py-2 px-3 rounded-lg text-sm font-bold text-slate-700 bg-slate-100 hover:bg-slate-200"
+                  className="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold text-slate-600 bg-slate-50 border border-slate-200"
                 >
-                  Sign In
-                </Link>
-                <Link
-                  href="/register"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex-1 text-center py-2 px-3 rounded-lg text-sm font-bold text-white bg-brand-blue hover:bg-brand-blue-dark"
-                >
-                  Register
+                  <ShieldCheck className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Admin Portal</span>
                 </Link>
               </div>
             )}

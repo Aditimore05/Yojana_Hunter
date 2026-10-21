@@ -1,5 +1,6 @@
 import logging
 from typing import Dict, Any, Optional
+from services.gemini_service import GeminiService
 
 logger = logging.getLogger(__name__)
 
@@ -7,7 +8,7 @@ class AIService:
     """
     Central AI invocation gateway.
     Handles user consent verification, prompt injection safeguards,
-    fallbacks, and retry logic.
+    fallbacks, and integration with the official GeminiService.
     """
 
     @staticmethod
@@ -18,25 +19,26 @@ class AIService:
         return True
 
     @classmethod
-    async def generate_explanation(
+    def generate_explanation(
         cls, 
-        scheme_name: str, 
-        rule_results: Dict[str, Any], 
-        source_url: str,
-        language: str = "en",
+        scheme_data: Dict[str, Any], 
+        profile_data: Dict[str, Any], 
+        rule_results: Dict[str, Any],
         consent_granted: bool = True
-    ) -> str:
+    ) -> Dict[str, Any]:
+        """
+        Generates a transparent, grounded explanation of scheme eligibility.
+        Upholds deterministic decision and avoids hallucinating rules.
+        """
         if not cls.verify_consent(consent_granted):
-            return "AI explanation unavailable. Consent not granted. Eligibility was calculated strictly by the deterministic rule engine."
+            return {
+                "explanation": "AI explanation unavailable. Consent not granted. Eligibility was calculated strictly by the deterministic rule engine.",
+                "source": "consent_required",
+                "citations": []
+            }
 
-        # Fallback / baseline template if LLM API is offline
-        status = rule_results.get("status", "unknown").upper()
-        passed = rule_results.get("passed_count", 0)
-        total = rule_results.get("total_count", 0)
-        
-        return (
-            f"Scheme: {scheme_name}\n"
-            f"Eligibility Status: {status} ({passed}/{total} criteria satisfied).\n"
-            f"Official Notification Source: {source_url}\n"
-            f"Please verify required documentation before applying."
+        return GeminiService.generate_grounded_explanation(
+            scheme_data=scheme_data,
+            profile_data=profile_data,
+            eval_result=rule_results
         )

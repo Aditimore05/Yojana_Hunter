@@ -505,6 +505,268 @@ VERIFIED_SCHEMES_CATALOGUE = [
             {"name": "Bank Passbook with IFSC", "mandatory": True, "desc": "Account linked with Aadhaar for DBT transfer"},
             {"name": "Caste Certificate (for OBC / SC / ST quota)", "mandatory": False, "desc": "Required for reserved category token allocation"}
         ]
+    },
+    {
+        "slug": "adarsh-shikshak-puraskar-maharashtra",
+        "name": "Maharashtra State Ideal Teacher Award (क्रांतिज्योती सावित्रीमाई फुले राज्य शिक्षक गुणगौरव पुरस्कार)",
+        "short_description": "State cash award of ₹1,00,000, Gold Medal, and honor citation for meritorious school teachers in Maharashtra.",
+        "description": "The Krantijyoti Savitrimai Phule State Teacher Award (Adarsh Shikshak Puraskar) is Maharashtra's premier state government honor administered by the School Education & Sports Department. Conferred annually on Teachers' Day (5th September), the scheme honors dedicated primary, secondary, higher secondary, and special teachers across Maharashtra for exemplary classroom pedagogy, innovative teaching learning material (TLM), girl child enrollment initiatives, and community engagement. Selected awardees receive a direct bank grant of ₹1,00,000, citation certificate, and service benefits.",
+        "benefits": "₹1,00,000 direct cash prize, State Gold Medal, Certificate of Honor, and eligibility for state educational resource delegation",
+        "category": "Education",
+        "department": "School Education and Sports Department, Government of Maharashtra (शालेय शिक्षण व क्रीडा विभाग, महाराष्ट्र)",
+        "level": "State Scheme",
+        "state": "Maharashtra",
+        "official_source_url": "https://education.maharashtra.gov.in/",
+        "application_url": "https://mahadbt.maharashtra.gov.in/",
+        "source_url": "https://education.maharashtra.gov.in/",
+        "application_process": "1. Eligible teachers submit nomination portfolios via MahaDBT / Shalarth portal (https://education.maharashtra.gov.in/).\n2. Portfolio includes self-appraisal, classroom innovations, student achievement metrics, and headmaster recommendation.\n3. District Selection Committee headed by CEO / Education Officer (Secondary) verifies records and shortlists candidates.\n4. State Level Scrutiny Committee finalizes awardees.\n5. Cash prize of ₹1,00,000 and gold medal presented on 5th September.",
+        "age_min": 21,
+        "age_max": 65,
+        "income_max": None,
+        "occupation": "Teacher",
+        "target_occupations": ["Teacher", "Educator", "Professor", "Faculty", "Instructor", "Lecturer", "Shikshak"],
+        "target_beneficiary_groups": ["Teachers", "Educators", "School Faculty"],
+        "eligible_states": ["Maharashtra"],
+        "education": "12th Pass / D.Ed / B.Ed / Graduate",
+        "gender": "All",
+        "social_category": "All",
+        "is_farmer_only": False,
+        "max_landholding_acres": None,
+        "exclusions": ["Disciplinary action or criminal inquiry pending"],
+        "priority": "High Priority",
+        "application_status": "open",
+        "rules": [
+            {
+                "rule_name": "Maharashtra Domicile",
+                "rule_description": "Must be resident of Maharashtra",
+                "rule_logic": {"field": "state", "op": "eq", "value": "Maharashtra"},
+                "is_mandatory": True
+            },
+            {
+                "rule_name": "Active Teacher / Educator",
+                "rule_description": "Must be serving as an active school teacher or educator",
+                "rule_logic": {"field": "occupation", "op": "in", "value": ["Teacher", "Educator", "Professor", "Faculty", "Instructor", "Lecturer", "Shikshak"]},
+                "is_mandatory": True
+            },
+            {
+                "rule_name": "Minimum Age",
+                "rule_description": "Age must be at least 21 years",
+                "rule_logic": {"field": "age", "op": ">=", "value": 21},
+                "is_mandatory": True
+            }
+        ],
+        "documents": [
+            {"name": "Aadhaar Card", "mandatory": True, "desc": "Identity verification"},
+            {"name": "Teacher Service ID / Appointment Order", "mandatory": True, "desc": "Proof of employment in recognized school / Shalarth code"},
+            {"name": "Educational Degree Marksheet (B.Ed / D.Ed / Degree)", "mandatory": True, "desc": "Professional educational qualification proof"},
+            {"name": "Maharashtra Domicile Certificate", "mandatory": True, "desc": "Proof of residence in Maharashtra"},
+            {"name": "Bank Passbook with IFSC", "mandatory": True, "desc": "Bank account for DBT transfer"}
+        ]
+    },
+    {
+        "slug": "national-award-to-teachers",
+        "name": "National Award to Teachers (NAT) — Rashtriya Shikshak Puraskar",
+        "short_description": "Prestigious national honor by Ministry of Education with ₹50,000 cash prize, Silver Medal, and President of India recognition.",
+        "description": "The National Award to Teachers is the Government of India's highest national honor for educators, instituted by the Department of School Education and Literacy, Ministry of Education. The award recognizes outstanding classroom practitioners and institutional leaders who have demonstrated extraordinary commitment to improving educational access, promoting experiential learning under NEP 2020, and fostering creative pedagogy in government and aided schools across all States and UTs.",
+        "benefits": "₹50,000 cash grant, Silver Medal, Certificate of Merit, and travel/hospitality for award conferment by the Hon'ble President of India at Vigyan Bhawan, New Delhi",
+        "category": "Education",
+        "department": "Department of School Education & Literacy, Ministry of Education, Government of India",
+        "level": "Central Scheme",
+        "state": "All India",
+        "official_source_url": "https://nationalawardstoteachers.education.gov.in/",
+        "application_url": "https://nationalawardstoteachers.education.gov.in/",
+        "source_url": "https://nationalawardstoteachers.education.gov.in/",
+        "application_process": "1. Register online directly on the National Award to Teachers portal (https://nationalawardstoteachers.education.gov.in/).\n2. Complete online self-nomination detailing ICT usage, student learning outcomes, and community mobilization.\n3. District Selection Committee (DSC) reviews applications and shortlists 3 top teachers per district.\n4. State Selection Committee (SSC) forwards nominations to National Jury.\n5. Independent National Jury evaluates video presentations and announces national awardees.",
+        "age_min": 21,
+        "age_max": 65,
+        "income_max": None,
+        "occupation": "Teacher",
+        "target_occupations": ["Teacher", "Educator", "Professor", "Faculty", "Instructor", "Lecturer", "Shikshak"],
+        "target_beneficiary_groups": ["Teachers", "Educators", "School Heads"],
+        "eligible_states": ["All India", "Maharashtra"],
+        "education": "12th Pass / Graduate / B.Ed",
+        "gender": "All",
+        "social_category": "All",
+        "is_farmer_only": False,
+        "max_landholding_acres": None,
+        "exclusions": ["Tuition teachers or non-recognized private tutors"],
+        "priority": "High Priority",
+        "application_status": "open",
+        "rules": [
+            {
+                "rule_name": "Active Teacher / Educator",
+                "rule_description": "Must be an active school teacher or educator",
+                "rule_logic": {"field": "occupation", "op": "in", "value": ["Teacher", "Educator", "Professor", "Faculty", "Instructor", "Lecturer", "Shikshak"]},
+                "is_mandatory": True
+            },
+            {
+                "rule_name": "Minimum Age",
+                "rule_description": "Age must be at least 21 years",
+                "rule_logic": {"field": "age", "op": ">=", "value": 21},
+                "is_mandatory": True
+            }
+        ],
+        "documents": [
+            {"name": "Aadhaar Card", "mandatory": True, "desc": "Identity verification"},
+            {"name": "School Service Certificate & UDISE / Shalarth ID", "mandatory": True, "desc": "Proof of teaching employment in recognized school"},
+            {"name": "Pedagogy & Student Achievement Portfolio", "mandatory": True, "desc": "Evidence of innovative teaching practices"},
+            {"name": "Bank Passbook with IFSC", "mandatory": True, "desc": "Direct Benefit Transfer account"}
+        ]
+    },
+    {
+        "slug": "maharashtra-shikshak-kalyan-nidhi",
+        "name": "Maharashtra Teachers Welfare Fund (महाराष्ट्र शिक्षक कल्याण निधी व आरोग्य सहाय्यता)",
+        "short_description": "Up to ₹1,50,000 medical relief grant and higher education financial aid for teachers and their families in Maharashtra.",
+        "description": "Administered by the Directorate of Education, Government of Maharashtra, the Teachers Welfare Fund (Shikshak Kalyan Nidhi) provides compassionate social security, critical medical assistance, and educational support grants for primary and secondary school teachers in Maharashtra. The fund offers direct financial assistance up to ₹1.5 Lakh for severe health ailments (cardiac surgery, cancer therapy, kidney disease, neurosurgery) and scholarships for teachers' children pursuing professional degree courses.",
+        "benefits": "Medical grant up to ₹1,50,000 for critical illness; Scholarship grant ₹10,000–₹25,000 for children of teachers; Ex-gratia emergency assistance",
+        "category": "Social Welfare",
+        "department": "Directorate of Education, Government of Maharashtra (शिक्षण संचलनालय, महाराष्ट्र राज्य)",
+        "level": "State Scheme",
+        "state": "Maharashtra",
+        "official_source_url": "https://education.maharashtra.gov.in/",
+        "application_url": "https://education.maharashtra.gov.in/",
+        "source_url": "https://education.maharashtra.gov.in/",
+        "application_process": "1. Download application form from the District Education Officer (Primary/Secondary) or visit https://education.maharashtra.gov.in/\n2. Submit medical treatment estimates / hospital bills or child college admission fee receipts.\n3. Headmaster / Principal countersigns application with teacher's Shalarth service code.\n4. District Welfare Committee sanctions relief and disburses grant directly via DBT into teacher's bank account.",
+        "age_min": 21,
+        "age_max": 65,
+        "income_max": None,
+        "occupation": "Teacher",
+        "target_occupations": ["Teacher", "Educator", "Faculty", "Instructor", "Lecturer", "Shikshak"],
+        "target_beneficiary_groups": ["Teachers", "Educators", "School Staff"],
+        "eligible_states": ["Maharashtra"],
+        "education": "12th Pass / Graduate",
+        "gender": "All",
+        "social_category": "All",
+        "is_farmer_only": False,
+        "max_landholding_acres": None,
+        "exclusions": [],
+        "priority": "High Priority",
+        "application_status": "open",
+        "rules": [
+            {
+                "rule_name": "Maharashtra Domicile",
+                "rule_description": "Must be resident of Maharashtra",
+                "rule_logic": {"field": "state", "op": "eq", "value": "Maharashtra"},
+                "is_mandatory": True
+            },
+            {
+                "rule_name": "Serving Teacher / Educator",
+                "rule_description": "Must be an active teacher in Maharashtra recognized school",
+                "rule_logic": {"field": "occupation", "op": "in", "value": ["Teacher", "Educator", "Professor", "Faculty", "Instructor", "Lecturer", "Shikshak"]},
+                "is_mandatory": True
+            },
+            {
+                "rule_name": "Minimum Age",
+                "rule_description": "Age must be at least 21 years",
+                "rule_logic": {"field": "age", "op": ">=", "value": 21},
+                "is_mandatory": True
+            }
+        ],
+        "documents": [
+            {"name": "Aadhaar Card", "mandatory": True, "desc": "Identity verification"},
+            {"name": "Teacher Service Identity Card / Salary Certificate", "mandatory": True, "desc": "Proof of teaching employment in Maharashtra"},
+            {"name": "Medical Estimate / Hospital Bill or Child College Fee Receipt", "mandatory": True, "desc": "Supporting justification for welfare assistance"},
+            {"name": "Bank Passbook with IFSC", "mandatory": True, "desc": "Direct Benefit Transfer account"}
+        ]
+    },
+    {
+        "slug": "pm-nishtha-teacher-training",
+        "name": "NISHTHA — National Initiative for Teachers' Holistic Advancement",
+        "short_description": "Free nationwide digital & classroom pedagogy training, NCERT certification, and professional development grant on DIKSHA.",
+        "description": "NISHTHA is a nationwide capacity building program under Samagra Shiksha, Ministry of Education, covering elementary and secondary school teachers, school heads, and academic resource persons. Delivered through interactive modules on the national DIKSHA platform, it equips educators with competency-based education techniques, toy-based pedagogy, inclusive education practices, student mental health support, and digital literacy. Enrolled teachers receive free access, government training allowances, and verified national micro-credentials.",
+        "benefits": "Free standardized pedagogical certification, training allowance/stipend, verified NCERT digital certificates, and modern teaching-learning material access",
+        "category": "Skill Development",
+        "department": "Department of School Education & Literacy, Ministry of Education & NCERT",
+        "level": "Central Scheme",
+        "state": "All India",
+        "official_source_url": "https://diksha.gov.in/",
+        "application_url": "https://itpd.ncert.gov.in/",
+        "source_url": "https://diksha.gov.in/",
+        "application_process": "1. Visit DIKSHA portal (https://diksha.gov.in/) or download DIKSHA mobile app.\n2. Register as 'Teacher' and select State (Maharashtra) and District.\n3. Link teacher credentials using State Shalarth ID / UDISE+ school code.\n4. Complete interactive modules, formative assessments, and practical classroom assignments.\n5. Download verifiable digital certificate issued jointly by NCERT and State Council of Educational Research and Training (SCERT Maharashtra).",
+        "age_min": 20,
+        "age_max": 65,
+        "income_max": None,
+        "occupation": "Teacher",
+        "target_occupations": ["Teacher", "Educator", "Professor", "Faculty", "Instructor", "Lecturer", "Tutor", "School Head"],
+        "target_beneficiary_groups": ["Teachers", "Educators", "Instructors", "Pedagogy Professionals"],
+        "eligible_states": ["All India", "Maharashtra"],
+        "education": "12th Pass / Graduate / D.Ed / B.Ed",
+        "gender": "All",
+        "social_category": "All",
+        "is_farmer_only": False,
+        "max_landholding_acres": None,
+        "exclusions": [],
+        "priority": "High Priority",
+        "application_status": "open",
+        "rules": [
+            {
+                "rule_name": "Practicing Teacher / Educator",
+                "rule_description": "Must be an active teacher or academic educator",
+                "rule_logic": {"field": "occupation", "op": "in", "value": ["Teacher", "Educator", "Professor", "Faculty", "Instructor", "Lecturer", "Tutor"]},
+                "is_mandatory": True
+            },
+            {
+                "rule_name": "Minimum Age",
+                "rule_description": "Age must be at least 20 years",
+                "rule_logic": {"field": "age", "op": ">=", "value": 20},
+                "is_mandatory": True
+            }
+        ],
+        "documents": [
+            {"name": "Aadhaar Card", "mandatory": True, "desc": "Identity verification"},
+            {"name": "School Teacher ID / Appointment Letter", "mandatory": True, "desc": "Proof of teaching employment"},
+            {"name": "Mobile Number linked to DIKSHA", "mandatory": True, "desc": "For OTP and course enrollment"}
+        ]
+    },
+    {
+        "slug": "pm-mmp-teachers-mission",
+        "name": "Pandit Madan Mohan Malaviya National Mission on Teachers and Teaching (PMMMNMTT)",
+        "short_description": "Fully sponsored Faculty Development Programs (FDP), capacity building, and research grants for educators.",
+        "description": "The Pandit Madan Mohan Malaviya National Mission on Teachers and Teaching (PMMMNMTT) is an umbrella central sector scheme by the Ministry of Education. It aims to address issues relating to teachers, preparation of educators, recruitment, and professional growth across schools, colleges, and higher education institutions. The scheme sponsors Faculty Induction Programs (FIP), Short-term Training Courses (STC), curriculum workshops, and action research grants through Teaching Learning Centres (TLCs) and Malaviya Mission Teacher Training Centres (MMTTC).",
+        "benefits": "100% sponsored training & accommodation; Research fellowship and contingency grants up to ₹2 Lakh for pedagogical projects; CAS score enhancement for career progression",
+        "category": "Education",
+        "department": "Department of Higher Education, Ministry of Education, Government of India",
+        "level": "Central Scheme",
+        "state": "All India",
+        "official_source_url": "https://nmtt.gov.in/",
+        "application_url": "https://mmc.ugc.ac.in/",
+        "source_url": "https://nmtt.gov.in/",
+        "application_process": "1. Visit the Malaviya Mission Teacher Training portal at https://mmc.ugc.ac.in/\n2. Register with institutional email and employment details.\n3. Browse accredited Faculty Development Programmes (FDP) offered by premier universities (such as Savitribai Phule Pune University, Mumbai University, IITs, Central Universities).\n4. Submit nomination approved by Head of Institution / Principal.\n5. Attend sponsored program and obtain UGC/AICTE recognized certification.",
+        "age_min": 21,
+        "age_max": 65,
+        "income_max": None,
+        "occupation": "Teacher",
+        "target_occupations": ["Teacher", "Educator", "Professor", "Faculty", "Lecturer", "Instructor", "Research Scholar"],
+        "target_beneficiary_groups": ["Teachers", "Educators", "College Faculty", "Lecturers"],
+        "eligible_states": ["All India", "Maharashtra"],
+        "education": "Graduate / Post Graduate / B.Ed",
+        "gender": "All",
+        "social_category": "All",
+        "is_farmer_only": False,
+        "max_landholding_acres": None,
+        "exclusions": [],
+        "priority": "Medium Priority",
+        "application_status": "open",
+        "rules": [
+            {
+                "rule_name": "Serving Teacher / Faculty",
+                "rule_description": "Must be a serving teacher or college faculty member",
+                "rule_logic": {"field": "occupation", "op": "in", "value": ["Teacher", "Educator", "Professor", "Faculty", "Lecturer", "Instructor"]},
+                "is_mandatory": True
+            },
+            {
+                "rule_name": "Minimum Age",
+                "rule_description": "Age must be at least 21 years",
+                "rule_logic": {"field": "age", "op": ">=", "value": 21},
+                "is_mandatory": True
+            }
+        ],
+        "documents": [
+            {"name": "Aadhaar Card", "mandatory": True, "desc": "Identity verification"},
+            {"name": "Teacher Service ID / Appointment Letter", "mandatory": True, "desc": "Proof of teaching employment in recognized institution"},
+            {"name": "Highest Degree Certificate", "mandatory": True, "desc": "Academic qualification verification"},
+            {"name": "Bank Passbook with IFSC", "mandatory": True, "desc": "Direct Benefit Transfer account"}
+        ]
     }
 ]
 
@@ -662,7 +924,11 @@ class SchemeSyncService:
                         social_category=item["social_category"],
                         is_farmer_only=item.get("is_farmer_only", False),
                         max_landholding_acres=item.get("max_landholding_acres"),
-                        exclusions=item.get("exclusions", [])
+                        exclusions=item.get("exclusions", []),
+                        target_occupations=item.get("target_occupations"),
+                        target_beneficiary_groups=item.get("target_beneficiary_groups"),
+                        eligible_states=item.get("eligible_states", [item["state"]]),
+                        admin_review_status="approved",
                     )
                     db.add(scheme)
                     db.flush()
@@ -682,11 +948,12 @@ class SchemeSyncService:
                     scheme.application_url = item["application_url"]
                     scheme.source_url = item["source_url"]
                     scheme.application_process = item["application_process"]
-                    scheme.last_verified_date = now.strftime("%d %b %Y"),
+                    scheme.last_verified_date = now.strftime("%d %b %Y")
                     scheme.priority = item.get("priority", "High Priority")
                     scheme.status = "published"
                     scheme.application_status = item.get("application_status", "open")
                     scheme.is_active = True
+                    scheme.admin_review_status = "approved"
                     scheme.source_verification_status = verification_status
                     scheme.last_fetched_at = now
                     scheme.age_min = item["age_min"]
@@ -699,6 +966,9 @@ class SchemeSyncService:
                     scheme.is_farmer_only = item.get("is_farmer_only", False)
                     scheme.max_landholding_acres = item.get("max_landholding_acres")
                     scheme.exclusions = item.get("exclusions", [])
+                    scheme.target_occupations = item.get("target_occupations")
+                    scheme.target_beneficiary_groups = item.get("target_beneficiary_groups")
+                    scheme.eligible_states = item.get("eligible_states", [item["state"]])
                     scheme.updated_at = now
                     updated += 1
 

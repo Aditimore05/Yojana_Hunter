@@ -45,6 +45,7 @@ export interface Scheme {
   matchScore: number; // e.g. 100, 90, 75, 40
   benefit: string; // e.g. "Up to ₹6.5 Lakh", "₹5,000 – ₹20,000"
   benefits?: string;
+  matchReason?: string;
   whyMatched?: string;
   requirementsSatisfied?: string[];
   requirementsNotSatisfied?: string[];
@@ -76,6 +77,17 @@ export interface Scheme {
   exclusions?: string[];
   startDate?: string | null;
   endDate?: string | null;
+  verificationNotes?: string;
+  groundingMetadata?: Record<string, any>;
+  discoveryJobId?: number;
+  adminReviewStatus?: string;
+  rejectionReason?: string;
+  citations?: Array<{ id: number; sourceTitle: string; sourceUrl: string; excerpt: string; confidenceScore: number }>;
+  isLocked?: boolean;
+  lockMessage?: string;
+  rank?: number;
   createdAt?: string | null;
   updatedAt?: string | null;
 }
+
+export type { SchemeCitation } from './admin';

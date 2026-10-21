@@ -7,6 +7,7 @@ export const initialProfile: UserProfile = {
   name: "Aditi Lagad",
   occupation: "Student",
   age: 21,
+  gender: "Female",
   state: "Maharashtra",
   district: "Nashik",
   annualIncome: "< 1 Lakh",
@@ -255,6 +256,154 @@ export const demoSchemes: Scheme[] = [
       { id: "c1", name: "Vending Certificate", condition: "Urban Local Body Vending Certificate", userValue: "Not a vendor", passed: false },
     ],
     requiredDocuments: ["Vending Certificate", "Aadhaar Card"]
+  },
+  {
+    id: "adarsh-shikshak-puraskar-maharashtra",
+    name: "Maharashtra State Ideal Teacher Award (क्रांतिज्योती सावित्रीमाई फुले राज्य शिक्षक गुणगौरव पुरस्कार)",
+    shortDescription: "State recognition and cash award for outstanding teachers in Maharashtra",
+    description: "Annual recognition conferred by the School Education and Sports Department of Maharashtra to exemplary primary, secondary, and higher secondary educators across the state.",
+    category: "Education",
+    department: "School Education and Sports Department, Maharashtra",
+    level: "State Scheme",
+    eligibilityStatus: "eligible",
+    matchScore: 90,
+    benefit: "₹1,00,000 Cash Award + Gold Medal + Certificate",
+    officialUrl: "https://education.maharashtra.gov.in",
+    lastVerifiedDate: "15 Oct 2026",
+    priority: "High Priority",
+    criteria: [
+      { id: "c1", name: "Occupation", condition: "Active School / College Teacher", userValue: "Teacher", passed: true },
+      { id: "c2", name: "State Jurisdiction", condition: "Maharashtra State Resident", userValue: "Maharashtra", passed: true },
+      { id: "c3", name: "Teaching Experience", condition: "Minimum 5 years service", userValue: "Verified Educator", passed: true }
+    ],
+    requiredDocuments: ["Aadhaar Card", "Teacher Service Certificate / Appointment Order", "Academic Achievement Portfolio", "Bank Passbook"]
+  },
+  {
+    id: "national-award-to-teachers",
+    name: "National Award to Teachers (NAT) — Rashtriya Shikshak Puraskar",
+    shortDescription: "National honor and cash grant awarded by the Ministry of Education",
+    description: "Conferred every year by the Hon'ble President of India to celebrate unique contributions of teachers across India who through their commitment have enriched the lives of students.",
+    category: "Education",
+    department: "Department of School Education & Literacy, MoE",
+    level: "Central Scheme",
+    eligibilityStatus: "eligible",
+    matchScore: 88,
+    benefit: "₹50,000 Cash Award + Silver Medal + Citation",
+    officialUrl: "https://nationalawardstoteachers.education.gov.in",
+    lastVerifiedDate: "15 Oct 2026",
+    priority: "High Priority",
+    criteria: [
+      { id: "c1", name: "Occupation", condition: "Practicing Teacher / Head of School", userValue: "Teacher", passed: true },
+      { id: "c2", name: "Service Tenure", condition: "Minimum 10 years continuous teaching", userValue: "Practicing Educator", passed: true }
+    ],
+    requiredDocuments: ["Aadhaar Card", "Service Record Book", "Innovation in Pedagogy Portfolio", "Recommendation Letter"]
+  },
+  {
+    id: "maharashtra-shikshak-kalyan-nidhi",
+    name: "Maharashtra Teachers Welfare Fund (महाराष्ट्र शिक्षक कल्याण निधी व आरोग्य सहाय्यता)",
+    shortDescription: "Comprehensive medical and welfare aid for Maharashtra teachers",
+    description: "Financial assistance fund providing medical emergency subsidies, compassionate aid, and educational scholarships for children of teachers working in aided and government institutions.",
+    category: "Education",
+    department: "Maharashtra State Teachers Welfare Foundation",
+    level: "State Scheme",
+    eligibilityStatus: "eligible",
+    matchScore: 85,
+    benefit: "Up to ₹1,50,000 medical aid & education support",
+    officialUrl: "https://education.maharashtra.gov.in",
+    lastVerifiedDate: "15 Oct 2026",
+    priority: "High Priority",
+    criteria: [
+      { id: "c1", name: "Occupation", condition: "Primary / Secondary / Junior College Teacher", userValue: "Teacher", passed: true },
+      { id: "c2", name: "State Jurisdiction", condition: "Maharashtra", userValue: "Maharashtra", passed: true }
+    ],
+    requiredDocuments: ["Aadhaar Card", "Teacher Identity Card (DISE / Shalarth ID)", "Medical Certificate", "Salary Slip / Passbook"]
+  },
+  {
+    id: "pm-nishtha-teacher-training",
+    name: "NISHTHA — National Initiative for Teachers' Holistic Advancement",
+    shortDescription: "Continuous professional development & certification on DIKSHA",
+    description: "Capacity building programme for improving quality of school education through integrated teacher training. Provides digital certifications, pedagogical resources, and allowances.",
+    category: "Education",
+    department: "NCERT & Ministry of Education",
+    level: "Central Scheme",
+    eligibilityStatus: "eligible",
+    matchScore: 82,
+    benefit: "Free digital certification, pedagogical grants & training credits",
+    officialUrl: "https://diksha.gov.in/nishtha",
+    lastVerifiedDate: "15 Oct 2026",
+    priority: "High Priority",
+    criteria: [
+      { id: "c1", name: "Occupation", condition: "School Teacher / Educational Instructor", userValue: "Teacher", passed: true },
+      { id: "c2", name: "Platform Access", condition: "Registered DIKSHA / UDISE+ Account", userValue: "Active Teacher", passed: true }
+    ],
+    requiredDocuments: ["Aadhaar Card", "Teacher ID / UDISE Code", "School Verification Letter"]
+  },
+  {
+    id: "pm-mmp-teachers-mission",
+    name: "Pandit Madan Mohan Malaviya National Mission on Teachers and Teaching (PMMMNMTT)",
+    shortDescription: "Faculty development programs, workshops & research curriculum grants",
+    description: "Addresses comprehensively all issues related to teachers, teaching, teacher preparation and professional development across schools, colleges, and university faculties.",
+    category: "Education",
+    department: "Department of Higher Education, Ministry of Education",
+    level: "Central Scheme",
+    eligibilityStatus: "eligible",
+    matchScore: 80,
+    benefit: "Fully funded Faculty Induction Programs (FIP) & research grants",
+    officialUrl: "https://nmtt.gov.in",
+    lastVerifiedDate: "15 Oct 2026",
+    priority: "High Priority",
+    gender: "All",
+    criteria: [
+      { id: "c1", name: "Occupation", condition: "Higher Secondary Teacher / College Faculty / Educator", userValue: "Teacher", passed: true },
+      { id: "c2", name: "Institution", condition: "Recognized State or Central Educational Institution", userValue: "Eligible Faculty", passed: true }
+    ],
+    requiredDocuments: ["Aadhaar Card", "Faculty ID Card", "Institution No-Objection Certificate"]
+  },
+  {
+    id: "mukhyamantri-majhi-ladki-bahin",
+    name: "Mukhyamantri Majhi Ladki Bahin Yojana",
+    shortDescription: "Direct monthly financial allowance of ₹1,500 for eligible women in Maharashtra",
+    description: "Flagship Maharashtra State welfare scheme providing economic independence and nutritional support through ₹1,500 direct monthly bank transfers to married, widowed, divorced, abandoned, and destitute women aged 21-65.",
+    category: "Women & Child",
+    department: "Women and Child Development Department, Maharashtra",
+    level: "State Scheme",
+    eligibilityStatus: "eligible",
+    matchScore: 95,
+    benefit: "₹1,500 / month direct transfer (₹18,000/year)",
+    officialUrl: "https://ladkibahin.maharashtra.gov.in",
+    lastVerifiedDate: "18 Oct 2026",
+    priority: "High Priority",
+    gender: "Female",
+    state: "Maharashtra",
+    criteria: [
+      { id: "c1", name: "Gender Eligibility", condition: "Exclusively for Female / Women", userValue: "Female", passed: true },
+      { id: "c2", name: "Age Limit", condition: "21 – 65 years", userValue: "21 years", passed: true },
+      { id: "c3", name: "State Domicile", condition: "Resident of Maharashtra", userValue: "Maharashtra", passed: true },
+      { id: "c4", name: "Family Income Limit", condition: "Annual family income ≤ ₹2.5 Lakh", userValue: "< 1 Lakh", passed: true }
+    ],
+    requiredDocuments: ["Aadhaar Card", "Maharashtra Domicile Certificate / Ration Card", "Income Certificate (Under 2.5 Lakh)", "Bank Passbook (Aadhaar linked)", "Hamipatra (Affidavit)"]
+  },
+  {
+    id: "aicte-pragati-scholarship-girls",
+    name: "AICTE Pragati Scholarship Scheme for Girl Students",
+    shortDescription: "Scholarship of ₹50,000 per annum for meritorious girl students in technical degree/diploma courses",
+    description: "Government scholarship scheme aimed at providing assistance for advancement of girls pursuing technical education across approved AICTE colleges. Supports up to 10,000 girl scholars per annum.",
+    category: "Education",
+    department: "All India Council for Technical Education (AICTE), Ministry of Education",
+    level: "Central Scheme",
+    eligibilityStatus: "eligible",
+    matchScore: 92,
+    benefit: "₹50,000 / year tuition fee & college support",
+    officialUrl: "https://www.aicte-india.org/schemes/students-development-schemes/Pragati",
+    lastVerifiedDate: "15 Oct 2026",
+    priority: "High Priority",
+    gender: "Female",
+    criteria: [
+      { id: "c1", name: "Gender Eligibility", condition: "Female Only (Girl Students)", userValue: "Female", passed: true },
+      { id: "c2", name: "Occupation & Education", condition: "Active Student enrolled in Technical Degree / Diploma", userValue: "Student (B.E. Final Year)", passed: true },
+      { id: "c3", name: "Annual Family Income", condition: "≤ ₹8 Lakh per annum", userValue: "< 1 Lakh", passed: true }
+    ],
+    requiredDocuments: ["Aadhaar Card", "College Admission Proof / Student ID Card", "Income Certificate", "HSC / 10th / Diploma Marksheet", "Bank Passbook"]
   }
 ];
 
@@ -275,8 +424,8 @@ export const demoActionPlanSteps: ActionPlanStep[] = [
     stepNumber: 1,
     title: "Prepare Documents",
     statusText: "Aadhaar Card (Uploaded) · Income Certificate (missing)",
-    actionLabel: "Upload Document",
-    actionUrl: "/documents",
+    actionLabel: "Verify Profile",
+    actionUrl: "/profile",
     badgeType: "alert",
     badgeText: "1 Missing"
   },
@@ -344,10 +493,29 @@ export const interviewQuestions: InterviewQuestion[] = [
       mr: "नमस्कार! मी योजना हंटर आहे 👋 तुमच्यासाठी योग्य सरकारी योजना शोधण्यासाठी मी काही सोपे प्रश्न विचारेन. सुरुवात करूया! तुमचा सध्याचा व्यवसाय काय आहे?"
     },
     options: [
-      { label: { en: "I am a student", hi: "मैं एक छात्र हूँ", mr: "मी विद्यार्थी आहे" }, value: "Student" },
-      { label: { en: "Farmer / Agriculture", hi: "किसान / कृषि", mr: "शेतकरी / कृषी" }, value: "Farmer" },
-      { label: { en: "Self-Employed / Business", hi: "स्वरोजगार / व्यापार", mr: "स्वयंरोजगार / व्यवसाय" }, value: "Self-Employed" },
-      { label: { en: "Job Seeker / Unemployed", hi: "नौकरी तलाशने वाला", mr: "नोकरी शोधणारा" }, value: "Job Seeker" },
+      { label: { en: "Student", hi: "छात्र (Student)", mr: "विद्यार्थी (Student)" }, value: "Student" },
+      { label: { en: "Farmer", hi: "किसान (Farmer)", mr: "शेतकरी (Farmer)" }, value: "Farmer" },
+      { label: { en: "Teacher", hi: "शिक्षक (Teacher)", mr: "शिक्षक (Teacher)" }, value: "Teacher" },
+      { label: { en: "Housewife / Homemaker", hi: "गृहिणी (Housewife)", mr: "गृहिणी (Housewife)" }, value: "Housewife" },
+      { label: { en: "Employee", hi: "कर्मचारी (Employee)", mr: "कर्मचारी (Employee)" }, value: "Employee" },
+      { label: { en: "Self-employed", hi: "स्वरोजगार (Self-employed)", mr: "स्वयंरोजगार (Self-employed)" }, value: "Self-employed" },
+      { label: { en: "Shopkeeper", hi: "दुकानदार (Shopkeeper)", mr: "दुकानदार (Shopkeeper)" }, value: "Shopkeeper" },
+      { label: { en: "Other", hi: "अन्य (Other)", mr: "इतर (Other)" }, value: "Other" },
+    ]
+  },
+  {
+    id: "q_gender",
+    field: "gender",
+    prompt: {
+      en: "What is your gender? This allows us to accurately verify eligibility and show schemes tailored specifically to you.",
+      hi: "आपका लिंग क्या है? इससे हम आपकी पात्रता की सटीक जांच कर सकते हैं और आपके लिए उपयुक्त योजनाएं दिखा सकते हैं।",
+      mr: "तुमचे लिंग काय आहे? यामुळे आम्ही तुमच्यासाठी लागू असणाऱ्या अचूक योजनांची पडताळणी करू शकतो."
+    },
+    options: [
+      { label: { en: "Male", hi: "पुरुष (Male)", mr: "पुरुष (Male)" }, value: "Male" },
+      { label: { en: "Female", hi: "महिला (Female)", mr: "महिला (Female)" }, value: "Female" },
+      { label: { en: "Transgender", hi: "ट्रांसजेंडर (Transgender)", mr: "तृतीयपंथी (Transgender)" }, value: "Transgender" },
+      { label: { en: "Other", hi: "अन्य (Other)", mr: "इतर (Other)" }, value: "Other" },
     ]
   },
   {
@@ -392,7 +560,7 @@ export const interviewQuestions: InterviewQuestion[] = [
       { label: { en: "Maharashtra", hi: "महाराष्ट्र", mr: "महाराष्ट्र" }, value: "Maharashtra" },
       { label: { en: "Uttar Pradesh", hi: "उत्तर प्रदेश", mr: "उत्तर प्रदेश" }, value: "Uttar Pradesh" },
       { label: { en: "Karnataka", hi: "कर्नाटक", mr: "कर्नाटक" }, value: "Karnataka" },
-      { label: { en: "Other State", hi: "अन्य राज्य", mr: "इतर राज्य" }, value: "Other" },
+      { label: { en: "Other State", hi: "अन्य राज्य (Other)", mr: "इतर राज्य (Other)" }, value: "Other" },
     ]
   },
   {
@@ -404,10 +572,12 @@ export const interviewQuestions: InterviewQuestion[] = [
       mr: "तुमचे सर्वोच्च किंवा सध्याचे शिक्षण काय आहे?"
     },
     options: [
-      { label: { en: "B.E. (Final Year) / Graduate", hi: "बी.ई. / स्नातक", mr: "B.E. (अंतिम वर्ष) / पदवीधर" }, value: "B.E. (Final Year)" },
-      { label: { en: "12th Pass (Higher Secondary)", hi: "12वीं पास", mr: "12 वी उत्तीर्ण" }, value: "12th Pass" },
-      { label: { en: "10th Pass (Matriculation)", hi: "10वीं पास", mr: "10 वी उत्तीर्ण" }, value: "10th Pass" },
-      { label: { en: "Postgraduate / Diploma", hi: "परास्नातक / डिप्लोमा", mr: "पदव्युत्तर / डिप्लोमा" }, value: "Postgraduate" },
+      { label: { en: "10th", hi: "10वीं (10th)", mr: "10 वी (10th)" }, value: "10th" },
+      { label: { en: "12th", hi: "12वीं (12th)", mr: "12 वी (12th)" }, value: "12th" },
+      { label: { en: "Diploma", hi: "डिप्लोमा (Diploma)", mr: "डिप्लोमा (Diploma)" }, value: "Diploma" },
+      { label: { en: "Graduate", hi: "स्नातक (Graduate)", mr: "पदवीधर (Graduate)" }, value: "Graduate" },
+      { label: { en: "Postgraduate", hi: "परास्नातक (Postgraduate)", mr: "पदव्युत्तर (Postgraduate)" }, value: "Postgraduate" },
+      { label: { en: "Other", hi: "अन्य (Other)", mr: "इतर (Other)" }, value: "Other" },
     ]
   },
   {
@@ -423,6 +593,7 @@ export const interviewQuestions: InterviewQuestion[] = [
       { label: { en: "OBC", hi: "ओबीसी (OBC)", mr: "इतर मागासवर्गीय (OBC)" }, value: "OBC" },
       { label: { en: "SC", hi: "एससी (SC)", mr: "अनुसूचित जाती (SC)" }, value: "SC" },
       { label: { en: "ST", hi: "एसटी (ST)", mr: "अनुसूचित जमाती (ST)" }, value: "ST" },
+      { label: { en: "Other", hi: "अन्य (Other)", mr: "इतर (Other)" }, value: "Other" },
     ]
   }
 ];

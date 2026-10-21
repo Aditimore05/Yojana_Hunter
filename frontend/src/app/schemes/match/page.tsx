@@ -22,8 +22,9 @@ import { fetchProfile } from "@/services/profileService";
 import { matchSchemesWithProfile } from "@/services/schemeService";
 import { SchemeCard } from "@/components/schemes/SchemeCard";
 import { Scheme, EligibilityStatus } from "@/types/scheme";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
-export default function InteractiveSchemeMatcherPage() {
+function InteractiveSchemeMatcherContent() {
   // Questionnaire state
   const [age, setAge] = useState<string>("24");
   const [gender, setGender] = useState<string>("Male");
@@ -32,7 +33,12 @@ export default function InteractiveSchemeMatcherPage() {
   const [district, setDistrict] = useState<string>("");
   const [annualIncome, setAnnualIncome] = useState<string>("250000");
   const [occupation, setOccupation] = useState<string>("Student");
+  const [isCustomOccupation, setIsCustomOccupation] = useState<boolean>(false);
+  const [customOccupation, setCustomOccupation] = useState<string>("");
   const [education, setEducation] = useState<string>("Graduate");
+  const [isCustomEducation, setIsCustomEducation] = useState<boolean>(false);
+  const [customEducation, setCustomEducation] = useState<string>("");
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   // Specific criteria
   const [isFarmer, setIsFarmer] = useState<boolean>(false);
@@ -60,6 +66,9 @@ export default function InteractiveSchemeMatcherPage() {
   });
   const [activeTab, setActiveTab] = useState<EligibilityStatus | "all">("eligible");
 
+  const PREDEFINED_MATCH_OCCS = ["Student", "Farmer", "Teacher", "Housewife", "Employee", "Self-employed", "Shopkeeper", "Salaried", "Unemployed", "Homemaker"];
+  const PREDEFINED_MATCH_EDUS = ["10th Pass", "12th Pass", "Diploma", "Graduate", "Post Graduate", "Below 10th"];
+
   // Load existing profile if available
   useEffect(() => {
     async function loadInitialProfile() {
@@ -72,8 +81,26 @@ export default function InteractiveSchemeMatcherPage() {
           if (profile.state) setState(profile.state);
           if (profile.district) setDistrict(profile.district);
           if (profile.annualIncome) setAnnualIncome(String(profile.annualIncome));
-          if (profile.occupation) setOccupation(profile.occupation);
-          if (profile.education) setEducation(profile.education);
+          if (profile.occupation) {
+            if (!PREDEFINED_MATCH_OCCS.includes(profile.occupation) || profile.occupation === "Other") {
+              setIsCustomOccupation(true);
+              setCustomOccupation(profile.occupation === "Other" ? "" : profile.occupation);
+              setOccupation("Other");
+            } else {
+              setOccupation(profile.occupation);
+              setIsCustomOccupation(false);
+            }
+          }
+          if (profile.education) {
+            if (!PREDEFINED_MATCH_EDUS.includes(profile.education) || profile.education === "Other") {
+              setIsCustomEducation(true);
+              setCustomEducation(profile.education === "Other" ? "" : profile.education);
+              setEducation("Other");
+            } else {
+              setEducation(profile.education);
+              setIsCustomEducation(false);
+            }
+          }
           if (profile.isFarmer !== undefined) setIsFarmer(profile.isFarmer);
           if (profile.landHoldingAcres !== undefined || profile.landholdingAcres !== undefined) {
             setLandholdingAcres(String(profile.landHoldingAcres || profile.landholdingAcres));
@@ -95,7 +122,36 @@ export default function InteractiveSchemeMatcherPage() {
 
   const handleEvaluate = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    setValidationError(null);
+
+    const finalOccupation = isCustomOccupation ? customOccupation.trim() : occupation;
+    if (isCustomOccupation && (!finalOccupation || finalOccupation === "Other")) {
+      setValidationError("Please enter your actual occupation.");
+      return;
+    }
+
+    const finalEducation = isCustomEducation ? customEducation.trim() : education;
+    if (isCustomEducation && (!finalEducation || finalEducation === "Other")) {
+      setValidationError("Please enter your actual qualification.");
+      return;
+    }
+
     setLoading(true);
+
+    const occLower = finalOccupation.toLowerCase();
+    const isStudentOcc = occLower.includes("student");
+    const isFarmerOcc = occLower.includes("farmer") || occLower.includes("kisan") || occLower.includes("agri") || occLower.includes("cultivat");
+    const isBizOcc = occLower.includes("business") || occLower.includes("entrepreneur") || occLower.includes("self-employed") || occLower.includes("shopkeeper") || occLower.includes("artisan") || occLower.includes("trader");
+
+    let effectiveIsFarmer = isFarmerOcc;
+    let effectiveIsStudent = isStudentOcc;
+    let effectiveHasBiz = isBizOcc || hasBusiness;
+
+    if (!isStudentOcc && !isFarmerOcc) {
+      effectiveIsStudent = false;
+      const land = landholdingAcres ? parseFloat(landholdingAcres) : 0;
+      effectiveIsFarmer = Boolean(isFarmer && land > 0);
+    }
 
     const payload = {
       age: age ? parseInt(age, 10) : null,
@@ -104,13 +160,13 @@ export default function InteractiveSchemeMatcherPage() {
       state,
       district,
       annualIncome: annualIncome ? parseFloat(annualIncome) : null,
-      occupation,
-      education,
-      isFarmer,
+      occupation: finalOccupation,
+      education: finalEducation,
+      isFarmer: effectiveIsFarmer,
       landholdingAcres: landholdingAcres ? parseFloat(landholdingAcres) : null,
-      isStudent,
+      isStudent: effectiveIsStudent,
       course,
-      hasBusiness,
+      hasBusiness: effectiveHasBiz,
       businessType,
       hasDisability,
       disabilityType: hasDisability ? "Locomotor Disability" : null,
@@ -294,33 +350,84 @@ export default function InteractiveSchemeMatcherPage() {
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-700">Primary Occupation</label>
                 <select
-                  value={occupation}
-                  onChange={(e) => setOccupation(e.target.value)}
+                  value={isCustomOccupation ? "Other" : occupation}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "Other") {
+                      setIsCustomOccupation(true);
+                      setCustomOccupation("");
+                    } else {
+                      setIsCustomOccupation(false);
+                      setCustomOccupation("");
+                      setOccupation(val);
+                    }
+                  }}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-brand-border text-xs sm:text-sm text-brand-navy bg-white focus:outline-none focus:border-brand-blue"
                 >
                   <option value="Student">Student</option>
                   <option value="Farmer">Farmer / Agriculture</option>
-                  <option value="Self-employed">Self-employed / Artisan</option>
+                  <option value="Teacher">Teacher / Academic</option>
+                  <option value="Housewife">Housewife / Homemaker</option>
+                  <option value="Employee">Employee</option>
+                  <option value="Self-employed">Self-employed</option>
+                  <option value="Shopkeeper">Shopkeeper / Retailer</option>
                   <option value="Salaried">Salaried Employee</option>
                   <option value="Unemployed">Unemployed / Job Seeker</option>
-                  <option value="Homemaker">Homemaker</option>
+                  <option value="Other">Other</option>
                 </select>
+                {isCustomOccupation && (
+                  <input
+                    type="text"
+                    value={customOccupation}
+                    onChange={(e) => {
+                      setCustomOccupation(e.target.value);
+                      if (validationError) setValidationError(null);
+                    }}
+                    placeholder="Enter your occupation (e.g. Teacher, Housewife, Shopkeeper)"
+                    className="w-full mt-1.5 px-3 py-2 rounded-lg border border-brand-blue text-xs sm:text-sm bg-blue-50/20 focus:outline-none focus:ring-1 focus:ring-brand-blue"
+                    autoFocus
+                  />
+                )}
               </div>
 
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-700">Education Qualification</label>
                 <select
-                  value={education}
-                  onChange={(e) => setEducation(e.target.value)}
+                  value={isCustomEducation ? "Other" : education}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "Other") {
+                      setIsCustomEducation(true);
+                      setCustomEducation("");
+                    } else {
+                      setIsCustomEducation(false);
+                      setCustomEducation("");
+                      setEducation(val);
+                    }
+                  }}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-brand-border text-xs sm:text-sm text-brand-navy bg-white focus:outline-none focus:border-brand-blue"
                 >
                   <option value="10th Pass">10th Pass</option>
                   <option value="12th Pass">12th Pass</option>
+                  <option value="Diploma">Diploma / Polytechnic</option>
                   <option value="Graduate">Graduate</option>
                   <option value="Post Graduate">Post Graduate</option>
-                  <option value="Diploma">Diploma / ITI</option>
                   <option value="Below 10th">Below 10th</option>
+                  <option value="Other">Other</option>
                 </select>
+                {isCustomEducation && (
+                  <input
+                    type="text"
+                    value={customEducation}
+                    onChange={(e) => {
+                      setCustomEducation(e.target.value);
+                      if (validationError) setValidationError(null);
+                    }}
+                    placeholder="Enter qualification (e.g. B.Ed, M.Phil, High School)"
+                    className="w-full mt-1.5 px-3 py-2 rounded-lg border border-brand-blue text-xs sm:text-sm bg-blue-50/20 focus:outline-none focus:ring-1 focus:ring-brand-blue"
+                    autoFocus
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -594,5 +701,13 @@ export default function InteractiveSchemeMatcherPage() {
         )}
       </div>
     </main>
+  );
+}
+
+export default function InteractiveSchemeMatcherPage() {
+  return (
+    <ProtectedRoute>
+      <InteractiveSchemeMatcherContent />
+    </ProtectedRoute>
   );
 }

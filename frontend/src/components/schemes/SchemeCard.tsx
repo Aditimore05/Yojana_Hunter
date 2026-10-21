@@ -160,6 +160,12 @@ export const SchemeCard: React.FC<Props> = ({ scheme }) => {
               </span>
             )}
 
+            {scheme.criteria && scheme.criteria.find((c: any) => c.id === "c_occupation") && (
+              <span className="font-medium text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-2xs">
+                Target: {scheme.criteria.find((c: any) => c.id === "c_occupation")?.condition}
+              </span>
+            )}
+
             {scheme.matchScore !== undefined && scheme.eligibilityStatus !== "not_eligible" && scheme.eligibilityStatus !== "ineligible" && (
               <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                 Match Score: {scheme.matchScore}%

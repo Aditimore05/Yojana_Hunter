@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Check, ArrowRight } from "lucide-react";
 import { saveStoredLanguage, getStoredLanguage } from "@/lib/storage";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
-export default function OnboardingPage() {
+function OnboardingContent() {
   const router = useRouter();
   const [selectedLang, setSelectedLang] = useState<"en" | "hi" | "mr">(getStoredLanguage() || "en");
 
@@ -113,5 +114,13 @@ export default function OnboardingPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function OnboardingPage() {
+  return (
+    <ProtectedRoute>
+      <OnboardingContent />
+    </ProtectedRoute>
   );
 }

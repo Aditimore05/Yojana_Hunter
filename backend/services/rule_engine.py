@@ -79,6 +79,16 @@ class RuleEngine:
                 except Exception as e:
                     return False, f"Income eval error: {e}", actual_numeric
 
+        # Normalize gender
+        if field in ("gender", "target_gender"):
+            from services.eligibility_service import SchemeEligibilityService
+            user_gender = str(profile.get("gender") or "").strip()
+            target_gender = str(target_val or "All").strip()
+            passed = SchemeEligibilityService.genders_match(user_gender, target_gender)
+            user_disp = user_gender or "Unspecified"
+            reason = f"Gender ({user_disp}) satisfies criteria ({target_gender})" if passed else f"Scheme is exclusively for {target_gender} beneficiaries (You are {user_disp})"
+            return passed, reason, user_disp
+
         # Normalize state
         if field == "state":
             target_state = str(target_val).strip().lower()
@@ -133,13 +143,146 @@ class RuleEngine:
 
         # Normalize category
         if field in ("category", "social_category", "socialCategory"):
-            user_cat = str(profile.get("category") or profile.get("social_category") or profile.get("socialCategory") or "").strip().lower()
-            target_cat = str(target_val).strip().lower()
-            if target_cat in ("all", "any", "general, obc, sc, st"):
+            user_cat = str(profile.get("category") or profile.get("social_category") or profile.get("socialCategory") or "General").strip().lower()
+            user_gender = str(profile.get("gender") or "").strip().lower()
+            occ_str = str(profile.get("occupation") or "").strip().lower()
+            is_woman = (user_gender == "female" or "woman" in occ_str)
+
+            if isinstance(target_val, list):
+                target_cats = [str(x).strip().lower() for x in target_val]
+            else:
+                target_cats = [str(target_val).strip().lower()]
+
+            if any(t in ("all", "any", "general, obc, sc, st") for t in target_cats):
                 return True, "Open to all social categories", profile.get("category") or "General"
-            passed = (target_cat == user_cat) or (target_cat in user_cat)
-            reason = f"Social Category ({profile.get('category') or 'General'}) matches {target_val}" if passed else f"Requires {target_val} category"
-            return passed, reason, profile.get("category") or profile.get("socialCategory") or "Not Specified"
+
+            passed = False
+            for t in target_cats:
+                if t in user_cat or user_cat in t:
+                    passed = True
+                    break
+                if t in ("woman", "female") and is_woman:
+                    passed = True
+                    break
+
+            if any(b in str(target_cats).lower() for b in ["bpl", "antyodaya", "ration"]):
+                # If target mentions ration card or BPL, and citizen has low/moderate income
+                actual_inc = profile.get("income_numeric") or profile.get("incomeNumeric")
+                if actual_inc is None:
+                    actual_inc = cls.parse_numeric_income(profile.get("annual_income") or profile.get("annualIncome"))
+                if actual_inc is not None and actual_inc <= 800000:
+                    passed = True
+                    reason = f"Eligible under state health ration card income provisions (₹{actual_inc:,.0f} <= ₹8,00,000)"
+                    user_disp = profile.get("category") or "General"
+                    return passed, reason, user_disp
+
+            reason = f"Category / Beneficiary matches {target_val}" if passed else f"Requires {target_val} category"
+            user_disp = profile.get("category") or ("Female / Woman Entrepreneur" if is_woman else "General")
+            return passed, reason, user_disp
+
+        # Normalize education / qualification
+        if field in ("education", "qualification"):
+            user_edu = str(profile.get("education") or "").strip()
+            if not user_edu:
+                return False, "Education qualification required", None
+
+            user_edu_lower = user_edu.lower()
+            edu_rank = {
+                "illiterate": 0, "none": 0,
+                "primary": 1, "8th": 1,
+                "10th": 2, "matric": 2, "ssc": 2,
+                "12th": 3, "higher secondary": 3, "hsc": 3, "intermediate": 3,
+                "diploma": 3.5, "iti": 3.5, "polytechnic": 3.5, "vocational": 3.5,
+                "graduate": 4, "b.e": 4, "b.tech": 4, "degree": 4, "b.sc": 4, "b.com": 4, "ba": 4, "bachelor": 4,
+                "postgraduate": 5, "pg": 5, "master": 5, "m.tech": 5, "mba": 5, "m.sc": 5, "doctorate": 6, "phd": 6
+            }
+
+            user_lvl = 2.0
+            for k, v in edu_rank.items():
+                if k in user_edu_lower:
+                    user_lvl = max(user_lvl, v)
+
+            if isinstance(target_val, list):
+                min_req_lvl = 10.0
+                has_any_match = False
+                for t in target_val:
+                    t_str = str(t).lower()
+                    if t_str in user_edu_lower or user_edu_lower in t_str:
+                        has_any_match = True
+                        break
+                    for k, v in edu_rank.items():
+                        if k in t_str:
+                            min_req_lvl = min(min_req_lvl, v)
+
+                if has_any_match or user_lvl >= min_req_lvl:
+                    return True, f"Educational qualification ({user_edu}) meets condition", user_edu
+                else:
+                    return False, f"Requires {target_val} qualification", user_edu
+            else:
+                target_str = str(target_val).lower()
+                if target_str in user_edu_lower or user_edu_lower in target_str:
+                    return True, f"Educational qualification ({user_edu}) meets condition", user_edu
+                target_lvl = 2.0
+                for k, v in edu_rank.items():
+                    if k in target_str:
+                        target_lvl = max(target_lvl, v)
+                if user_lvl >= target_lvl:
+                    return True, f"Educational qualification ({user_edu}) satisfies minimum condition ({target_val})", user_edu
+                else:
+                    return False, f"Requires {target_val} qualification", user_edu
+
+        # Normalize occupation & target occupations dynamically
+        if field in ("occupation", "target_occupations", "targetOccupations"):
+            user_occ = str(profile.get("occupation") or "").strip()
+            if not user_occ:
+                return False, "Occupation required", None
+
+            user_occ_lower = user_occ.lower()
+            target_list = target_val if isinstance(target_val, list) else [str(target_val)]
+            target_clean = [str(x).strip().lower() for x in target_list]
+
+            # Universal schemes
+            if any(t in ("all", "any", "open to all", "citizens", "all citizens", "general", "") for t in target_clean):
+                return True, "Open to all citizen occupations", user_occ
+
+            passed = False
+            # 1. Direct or substring match
+            for t in target_clean:
+                if t in user_occ_lower or user_occ_lower in t:
+                    passed = True
+                    break
+
+            # 2. Farmers / Agriculture
+            if not passed and any(t in ("farmer", "kisan", "cultivator", "agriculture") for t in target_clean):
+                if any(k in user_occ_lower for k in ["farmer", "kisan", "agri", "cultivat", "krishi", "shetkari"]):
+                    passed = True
+
+            # 3. Students / Education
+            if not passed and any(t in ("student", "scholar", "higher education") for t in target_clean):
+                if "student" in user_occ_lower:
+                    passed = True
+
+            # 4. Salaried / Professionals
+            if not passed and any(t in ("salaried employee", "salaried", "employee", "professional", "teacher", "worker") for t in target_clean):
+                if any(s in user_occ_lower for s in ["teacher", "professor", "lecturer", "educator", "doctor", "nurse", "engineer", "clerk", "accountant", "employee", "salaried", "worker", "corporate", "staff"]):
+                    passed = True
+
+            # 5. Business / MSME / Trader / Retailer / Self-Employed
+            if not passed and any(t in ("self-employed", "business", "entrepreneur", "msme", "artisan", "craftsperson", "shopkeeper", "trader") for t in target_clean):
+                if any(b in user_occ_lower for b in ["shopkeeper", "trader", "merchant", "retailer", "vendor", "storekeeper", "business", "self-employed", "artisan", "craftsperson", "entrepreneur"]):
+                    passed = True
+
+            # 6. Homemaker / Women
+            if not passed and any(t in ("homemaker", "housewife", "women", "female") for t in target_clean):
+                user_gender = str(profile.get("gender") or "").strip().lower()
+                if any(h in user_occ_lower for h in ["housewife", "homemaker", "home maker", "woman", "women"]) or user_gender == "female":
+                    passed = True
+
+            target_display = ", ".join(target_list) if isinstance(target_val, list) else str(target_val)
+            if passed:
+                return True, f"Occupation ({user_occ}) matches target beneficiary ({target_display})", user_occ
+            else:
+                return False, f"Requires {target_display} (Your occupation: {user_occ})", user_occ
 
         if field not in profile or profile[field] is None:
             return False, f"Missing parameter: {field}", None

@@ -98,7 +98,9 @@ class TestAuthEndToEnd(unittest.TestCase):
     def test_05_passwords_stored_as_hashes(self):
         """6. Passwords are stored as hashes (never plaintext)."""
         sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "backend")))
-        from database import SessionLocal
+        from dotenv import dotenv_values
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
         from models import User
 
         # Register a new user to verify new passwords use bcrypt
@@ -110,7 +112,11 @@ class TestAuthEndToEnd(unittest.TestCase):
             "password": raw_pw
         })
 
-        db = SessionLocal()
+        env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "backend", ".env"))
+        live_db_url = dotenv_values(env_path).get("DATABASE_URL") or os.environ.get("DATABASE_URL")
+        db_engine = create_engine(live_db_url)
+        Session = sessionmaker(bind=db_engine)
+        db = Session()
         try:
             new_u = db.query(User).filter(User.email == test_email).first()
             self.assertIsNotNone(new_u)

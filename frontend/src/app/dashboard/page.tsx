@@ -5,7 +5,7 @@ import Link from "next/link";
 import { 
   Bot, 
   Layers, 
-  FolderCheck, 
+  Bookmark, 
   Download, 
   CheckCircle2, 
   AlertTriangle, 
@@ -33,27 +33,24 @@ function DashboardContent() {
   const [counts, setCounts] = useState({ total: 12, eligible: 6, almost: 3, ineligible: 3 });
 
   useEffect(() => {
-    if (authProfile) {
-      setProfile(authProfile);
-    } else {
-      setProfile(getStoredProfile());
-    }
+    const active = authProfile || getStoredProfile();
+    setProfile(active);
     setMounted(true);
 
     async function loadData() {
-      const data = await getSchemes();
-      if (data && data.length > 0) {
+      const data = await getSchemes("all", undefined, "all", "all", active);
+      if (data) {
         setSchemes(data);
         setCounts({
           total: data.length,
           eligible: data.filter((s) => s.eligibilityStatus === "eligible").length,
-          almost: data.filter((s) => s.eligibilityStatus === "almost").length,
-          ineligible: data.filter((s) => s.eligibilityStatus === "ineligible").length,
+          almost: data.filter((s) => s.eligibilityStatus === "possibly_eligible" || (s as any).legacyEligibilityStatus === "almost").length,
+          ineligible: data.filter((s) => s.eligibilityStatus === "not_eligible" || (s as any).legacyEligibilityStatus === "ineligible").length,
         });
       }
     }
     loadData();
-  }, []);
+  }, [authProfile]);
 
   const stats = [
     { label: "Total Schemes Found", value: counts.total, color: "text-brand-blue", bg: "bg-blue-50/70 border-blue-100" },
@@ -62,42 +59,18 @@ function DashboardContent() {
     { label: "Not Eligible", value: counts.ineligible, color: "text-rose-600", bg: "bg-rose-50/70 border-rose-100", icon: XCircle },
   ];
 
-  const topOpportunities = schemes.length > 0
-    ? schemes.slice(0, 3).map((s) => ({
-        id: s.slug || s.id,
-        name: s.name,
-        match: `${s.matchScore || 100}% Match`,
-        priority: s.priority || "High Priority",
-        badgeColor: "bg-amber-50 text-amber-700 border-amber-200",
-      }))
-    : [
-        {
-          id: "pm-vidyalakshmi",
-          name: "PM Vidyalakshmi Scheme",
-          match: "100% Match",
-          priority: "High Priority",
-          badgeColor: "bg-amber-50 text-amber-700 border-amber-200",
-        },
-        {
-          id: "post-matric-scholarship",
-          name: "Post Matric Scholarship",
-          match: "90% Match",
-          priority: "High Priority",
-          badgeColor: "bg-amber-50 text-amber-700 border-amber-200",
-        },
-        {
-          id: "skill-india-training",
-          name: "Skill India — Training Program",
-          match: "75% Match",
-          priority: "Medium Priority",
-          badgeColor: "bg-amber-50 text-amber-700 border-amber-200",
-        },
-      ];
+  const topOpportunities = schemes.slice(0, 3).map((s) => ({
+    id: s.slug || s.id,
+    name: s.name,
+    match: `${s.matchScore || 100}% Match`,
+    priority: s.priority || "High Priority",
+    badgeColor: "bg-amber-50 text-amber-700 border-amber-200",
+  }));
 
   const quickActions = [
     { title: "Continue Interview", href: "/interview", icon: Bot, color: "text-teal-600 bg-teal-50" },
     { title: "View All Schemes", href: "/schemes", icon: Layers, color: "text-brand-blue bg-blue-50" },
-    { title: "Check Documents", href: "/documents", icon: FolderCheck, color: "text-emerald-600 bg-emerald-50" },
+    { title: "Saved Schemes", href: "/saved-schemes", icon: Bookmark, color: "text-emerald-600 bg-emerald-50" },
     { title: "Download Reports", href: "/application-draft", icon: Download, color: "text-purple-600 bg-purple-50" },
   ];
 

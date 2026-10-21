@@ -1,6 +1,6 @@
 import os
 import logging
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 from config import config
 from database import SessionLocal, init_db
@@ -19,11 +19,37 @@ def create_app():
     # Enable Cross-Origin Resource Sharing for Next.js frontend
     CORS(
         app,
-        resources={r"/api/*": {"origins": config.CORS_ORIGINS}},
+        resources={r"/api/*": {"origins": "*"}},
         supports_credentials=True,
-        allow_headers=["Content-Type", "Authorization", "Accept"],
+        allow_headers=["Content-Type", "Authorization", "Accept", "X-Requested-With", "Access-Control-Request-Private-Network"],
         methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     )
+
+    @app.before_request
+    def handle_preflight():
+        if request.method == "OPTIONS":
+            response = app.make_default_options_response()
+            origin = request.headers.get("Origin")
+            if origin:
+                response.headers["Access-Control-Allow-Origin"] = origin
+                response.headers["Access-Control-Allow-Credentials"] = "true"
+                response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+                response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, Accept, X-Requested-With, Access-Control-Request-Private-Network"
+            if request.headers.get("Access-Control-Request-Private-Network") or origin:
+                response.headers["Access-Control-Allow-Private-Network"] = "true"
+            return response
+
+    @app.after_request
+    def add_cors_headers(response):
+        origin = request.headers.get("Origin")
+        if origin:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+            response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, Accept, X-Requested-With, Access-Control-Request-Private-Network"
+        if request.headers.get("Access-Control-Request-Private-Network") or origin:
+            response.headers["Access-Control-Allow-Private-Network"] = "true"
+        return response
 
     # Register API blueprints:
     # 1. Primary path: /api/... (e.g. /api/health, /api/schemes, /api/profile)
@@ -55,6 +81,20 @@ def create_app():
     def server_error(e):
         logger.error(f"Internal server error: {e}")
         return jsonify({"error": "Internal server error", "status_code": 500}), 500
+
+    # Clean up stale discovery jobs from prior sessions
+    try:
+        from services.discovery_service import DiscoveryService
+        DiscoveryService.cleanup_stale_jobs()
+    except Exception as e:
+        logger.warning(f"Could not clean up stale jobs: {e}")
+
+    # Start automated scheme discovery background scheduler
+    try:
+        from services.scheduler_service import SchedulerService
+        SchedulerService.start_scheduler_thread()
+    except Exception as e:
+        logger.warning(f"Could not initialize discovery scheduler thread: {e}")
 
     return app
 

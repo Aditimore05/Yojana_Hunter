@@ -23,19 +23,26 @@ def evaluate_eligibility():
         if not scheme:
             scheme = db.query(Scheme).filter(Scheme.slug == str(scheme_id)).first()
 
-        if not scheme:
+        if (
+            not scheme 
+            or not scheme.is_active 
+            or scheme.status != "published" 
+            or not scheme.admin_review_status 
+            or scheme.admin_review_status not in ("approved", "published")
+        ):
             return jsonify({"error": f"Scheme '{scheme_id}' not found"}), 404
 
-        # Run rule engine
-        result = RuleEngine.evaluate_scheme(scheme.rules, profile_data)
+        # Run unified eligibility service (evaluates occupation, criteria, rules, etc.)
+        from services.eligibility_service import SchemeEligibilityService
+        eval_result = SchemeEligibilityService.evaluate_scheme_for_profile(scheme, profile_data)
 
         # Record result in PostgreSQL
         record = EligibilityResult(
             scheme_id=scheme.id,
-            status=result["status"],
-            match_score=result["match_score"],
-            criteria_breakdown=result["criteria"],
-            reasoning_text=result["ineligible_reason"] or "All mandatory conditions satisfied."
+            status=eval_result["eligibility_status"],
+            match_score=eval_result["match_score"],
+            criteria_breakdown=eval_result["criteria"],
+            reasoning_text=(eval_result["requirements_not_satisfied"][0] if eval_result["requirements_not_satisfied"] else "All mandatory conditions satisfied.")
         )
         db.add(record)
         db.commit()
@@ -43,12 +50,16 @@ def evaluate_eligibility():
         return jsonify({
             "schemeId": scheme.slug,
             "schemeName": scheme.name,
-            "status": result["status"],
-            "matchScore": result["match_score"],
-            "passedCount": result["passed_count"],
-            "totalCount": result["total_count"],
-            "ineligibleReason": result["ineligible_reason"],
-            "criteria": result["criteria"]
+            "status": eval_result["eligibility_status"],
+            "legacyStatus": eval_result["legacy_status"],
+            "matchScore": eval_result["match_score"],
+            "matchReason": eval_result["match_reason"],
+            "whyMatched": eval_result["why_matched"],
+            "requirementsSatisfied": eval_result["requirements_satisfied"],
+            "requirementsNotSatisfied": eval_result["requirements_not_satisfied"],
+            "missingInformation": eval_result["missing_information"],
+            "ineligibleReason": (eval_result["requirements_not_satisfied"][0] if eval_result["requirements_not_satisfied"] else None),
+            "criteria": eval_result["criteria"]
         })
     except Exception as e:
         db.rollback()

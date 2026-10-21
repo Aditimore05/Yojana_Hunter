@@ -1,7 +1,15 @@
-import { AdminUser, AdminDashboardStats, SchemeFormData } from '@/types/admin';
+import { 
+  AdminUser, 
+  AdminDashboardStats, 
+  SchemeFormData, 
+  DiscoveryJob, 
+  SchemeReviewHistory, 
+  GeminiStatus,
+  DiscoverySchedule
+} from '@/types/admin';
 import { Scheme, SchemeStatus } from '@/types/scheme';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:5000/api';
+const API_BASE_URL = typeof window !== 'undefined' ? '/api' : (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:5000/api');
 const TOKEN_KEY = 'yojana_admin_token';
 const USER_KEY = 'yojana_admin_user';
 
@@ -248,3 +256,187 @@ export async function deleteAdminScheme(
   }
   return { success: false, error: res.error || 'Failed to delete scheme.' };
 }
+
+// ==========================================
+// GEMINI DISCOVERY & SCHEME REVIEW APIS
+// ==========================================
+
+export async function getGeminiStatus(): Promise<GeminiStatus | null> {
+  const res = await adminFetch<GeminiStatus>('/admin/gemini/status');
+  return res.data;
+}
+
+export async function startDiscoveryJob(params?: {
+  state?: string;
+  category?: string;
+  department?: string;
+  query?: string;
+  maxQueries?: number;
+}): Promise<{ success: boolean; jobId?: string; message?: string; error?: string }> {
+  const res = await adminFetch<{ success: boolean; jobId: string; message: string }>(
+    '/admin/discovery-jobs',
+    {
+      method: 'POST',
+      body: JSON.stringify(params || {}),
+    }
+  );
+  if (res.data?.success) {
+    return { success: true, jobId: res.data.jobId, message: res.data.message };
+  }
+  return { success: false, error: res.error || 'Failed to start discovery job.' };
+}
+
+export async function getDiscoveryJobs(
+  limit: number = 20,
+  offset: number = 0,
+  status?: string
+): Promise<{ total: number; activeJobId?: string | null; jobs: DiscoveryJob[] }> {
+  const params = new URLSearchParams();
+  params.set('limit', limit.toString());
+  params.set('offset', offset.toString());
+  if (status && status !== 'all') params.set('status', status);
+
+  const res = await adminFetch<{ total: number; activeJobId: string | null; jobs: DiscoveryJob[] }>(
+    `/admin/discovery-jobs?${params.toString()}`
+  );
+  return res.data || { total: 0, activeJobId: null, jobs: [] };
+}
+
+export async function getDiscoveryJob(jobId: string): Promise<DiscoveryJob | null> {
+  const res = await adminFetch<DiscoveryJob>(`/admin/discovery-jobs/${jobId}`);
+  return res.data;
+}
+
+export async function cancelDiscoveryJob(jobId: string): Promise<{ success: boolean; error?: string }> {
+  const res = await adminFetch<{ success: boolean; message?: string }>(
+    `/admin/discovery-jobs/${jobId}/cancel`,
+    { method: 'POST' }
+  );
+  return { success: !!res.data?.success, error: res.error };
+}
+
+export async function getPendingReviewSchemes(
+  reviewStatus: string = 'pending_review',
+  limit: number = 50
+): Promise<Scheme[]> {
+  const res = await adminFetch<{ count: number; schemes: Scheme[] }>(
+    `/admin/schemes/pending-review?reviewStatus=${reviewStatus}&limit=${limit}`
+  );
+  return res.data?.schemes || [];
+}
+
+export async function approveAdminScheme(
+  schemeId: string,
+  notes?: string
+): Promise<{ success: boolean; scheme?: Scheme; error?: string }> {
+  const res = await adminFetch<{ message: string; scheme: Scheme }>(
+    `/admin/schemes/${schemeId}/approve`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ notes }),
+    }
+  );
+  if (res.data?.scheme) {
+    return { success: true, scheme: res.data.scheme };
+  }
+  return { success: false, error: res.error || 'Failed to approve scheme.' };
+}
+
+export async function rejectAdminScheme(
+  schemeId: string,
+  reason: string
+): Promise<{ success: boolean; scheme?: Scheme; error?: string }> {
+  const res = await adminFetch<{ message: string; scheme: Scheme }>(
+    `/admin/schemes/${schemeId}/reject`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }
+  );
+  if (res.data?.scheme) {
+    return { success: true, scheme: res.data.scheme };
+  }
+  return { success: false, error: res.error || 'Failed to reject scheme.' };
+}
+
+export async function reverifyAdminScheme(
+  schemeId: string,
+  notes?: string
+): Promise<{ success: boolean; scheme?: Scheme; error?: string }> {
+  const res = await adminFetch<{ message: string; scheme: Scheme }>(
+    `/admin/schemes/${schemeId}/reverify`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ notes }),
+    }
+  );
+  if (res.data?.scheme) {
+    return { success: true, scheme: res.data.scheme };
+  }
+  return { success: false, error: res.error || 'Failed to request re-verification.' };
+}
+
+export async function getAdminSchemeHistory(
+  schemeId: string
+): Promise<{ reviewHistory: SchemeReviewHistory[]; changeLogs: Array<{ id: number; summary: string; detectedAt: string }> } | null> {
+  const res = await adminFetch<{
+    reviewHistory: SchemeReviewHistory[];
+    changeLogs: Array<{ id: number; summary: string; detectedAt: string }>;
+  }>(`/admin/schemes/${schemeId}/history`);
+  return res.data;
+}
+
+export async function testGeminiConnection(): Promise<{ 
+  success: boolean; 
+  message: string; 
+  model?: string;
+  groundingSupported?: boolean;
+  groundingStatus?: string;
+  latencyMs?: number;
+}> {
+  const res = await adminFetch<{ 
+    success: boolean; 
+    message: string; 
+    model?: string;
+    groundingSupported?: boolean;
+    groundingStatus?: string;
+    latencyMs?: number;
+  }>(
+    '/admin/gemini/test',
+    { method: 'POST' }
+  );
+  return res.data || { success: false, message: res.error || 'Connection test failed.' };
+}
+
+export async function getDiscoverySchedule(): Promise<DiscoverySchedule | null> {
+  const res = await adminFetch<DiscoverySchedule>('/admin/discovery/schedule');
+  return res.data;
+}
+
+export async function updateDiscoverySchedule(
+  schedule: Partial<DiscoverySchedule>
+): Promise<{ success: boolean; schedule?: DiscoverySchedule; error?: string }> {
+  const res = await adminFetch<{ message: string; schedule: DiscoverySchedule }>(
+    '/admin/discovery/schedule',
+    {
+      method: 'POST',
+      body: JSON.stringify(schedule),
+    }
+  );
+  if (res.data?.schedule) {
+    return { success: true, schedule: res.data.schedule };
+  }
+  return { success: false, error: res.error || 'Failed to update schedule.' };
+}
+
+export async function triggerScheduledDiscoveryNow(): Promise<{ success: boolean; jobId?: string; message?: string; error?: string }> {
+  const res = await adminFetch<{ success: boolean; jobId: string; message: string }>(
+    '/admin/discovery/schedule/run-now',
+    { method: 'POST' }
+  );
+  if (res.data?.success) {
+    return { success: true, jobId: res.data.jobId, message: res.data.message };
+  }
+  return { success: false, error: res.error || 'Failed to trigger scheduled run.' };
+}
+

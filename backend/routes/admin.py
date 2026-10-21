@@ -789,3 +789,94 @@ def admin_toggle_scheme_active(scheme_id: str):
     finally:
         db.close()
 
+
+# =========================================================================
+# SUBSCRIPTION MANAGEMENT ENDPOINTS
+# =========================================================================
+
+@admin_bp.route("/subscriptions", methods=["GET"])
+@admin_required
+def list_admin_subscriptions():
+    """
+    GET /api/admin/subscriptions
+    Returns all subscription requests with filtering by status and search query.
+    """
+    from services.subscription_service import SubscriptionService
+    db = SessionLocal()
+    try:
+        status_filter = request.args.get("status")
+        search_query = request.args.get("q")
+        result = SubscriptionService.list_admin_subscription_requests(
+            db, 
+            status_filter=status_filter, 
+            search_query=search_query
+        )
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+@admin_bp.route("/subscriptions/<int:req_id>/approve", methods=["POST"])
+@admin_required
+def approve_admin_subscription(req_id):
+    """
+    POST /api/admin/subscriptions/<req_id>/approve
+    Approves a pending subscription request and activates user's premium access.
+    """
+    from services.subscription_service import SubscriptionService
+    db = SessionLocal()
+    try:
+        admin_user = g.current_user
+        success, message, sub_req = SubscriptionService.approve_subscription_request(
+            db, 
+            request_id=req_id, 
+            admin_id=admin_user.id
+        )
+        if not success:
+            return jsonify({"error": message}), 400
+
+        return jsonify({
+            "message": message,
+            "subscription": sub_req.to_dict(include_user=True)
+        }), 200
+    except Exception as e:
+        db.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+@admin_bp.route("/subscriptions/<int:req_id>/reject", methods=["POST"])
+@admin_required
+def reject_admin_subscription(req_id):
+    """
+    POST /api/admin/subscriptions/<req_id>/reject
+    Rejects a subscription request with an optional reason.
+    """
+    from services.subscription_service import SubscriptionService
+    db = SessionLocal()
+    try:
+        admin_user = g.current_user
+        payload = request.get_json() or {}
+        reason = payload.get("rejection_reason") or payload.get("reason")
+
+        success, message, sub_req = SubscriptionService.reject_subscription_request(
+            db, 
+            request_id=req_id, 
+            admin_id=admin_user.id, 
+            rejection_reason=reason
+        )
+        if not success:
+            return jsonify({"error": message}), 400
+
+        return jsonify({
+            "message": message,
+            "subscription": sub_req.to_dict(include_user=True)
+        }), 200
+    except Exception as e:
+        db.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+

@@ -36,7 +36,12 @@ export function getStoredUser(): User | null {
 }
 
 export function isLoggedIn(): boolean {
-  return Boolean(getAuthToken());
+  const token = getAuthToken();
+  const user = getStoredUser();
+  if (!token || !user) return false;
+  // Preserve role-based access: Admin accounts must not be treated as citizen logins
+  if (user.role === 'admin') return false;
+  return true;
 }
 
 export async function login(
