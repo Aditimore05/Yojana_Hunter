@@ -21,12 +21,20 @@ import {
   Building2,
   ShieldCheck,
   Check,
-  Sparkles
+  Sparkles,
+  Award,
+  Lock,
+  Users,
+  Plus,
+  Trash2,
+  Heart
 } from "lucide-react";
-import { fetchProfile, updateProfile } from "@/services/profileService";
-import { UserProfile } from "@/types/profile";
+import { fetchProfile, updateProfile, deleteProfile, fetchProfiles } from "@/services/profileService";
+import { UserProfile, UserLevelInfo, FamilyRelationship } from "@/types/profile";
+import { calculateUserLevel } from "@/lib/userLevel";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/context/AuthContext";
+import { FamilyProfileModal } from "@/components/profile/FamilyProfileModal";
 
 const OCCUPATION_OPTIONS = [
   "Student",
@@ -100,32 +108,44 @@ const SOCIAL_CATEGORIES = [
 
 function ProfileContent() {
   const router = useRouter();
-  const { user, profile: authProfile, updateProfileState } = useAuth();
+  const { 
+    user, 
+    profile: authProfile, 
+    familyProfiles, 
+    switchActiveProfile, 
+    refreshFamilyProfiles, 
+    updateProfileState 
+  } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isProfileSaved, setIsProfileSaved] = useState<boolean>(false);
+  const [userLevel, setUserLevel] = useState<UserLevelInfo | null>(null);
+  const [selectedProfileId, setSelectedProfileId] = useState<number | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
-  // Form State
+  // Form State - blank for new users until provided
   const [formData, setFormData] = useState<UserProfile>({
+    relationship: "Self",
     name: "",
-    age: 21,
+    age: 0,
     dateOfBirth: "",
-    gender: "Female",
-    occupation: "Student",
-    annualIncome: "< 1 Lakh",
-    incomeNumeric: 95000,
-    education: "Graduate (B.E. / B.Tech / Professional)",
-    state: "Maharashtra",
-    district: "Nashik",
-    category: "General",
+    gender: "",
+    occupation: "",
+    annualIncome: "",
+    incomeNumeric: 0,
+    education: "",
+    state: "",
+    district: "",
+    category: "",
     fatherName: "",
     completenessPercent: 0,
     language: "en",
     isFarmer: false,
     landHoldingAcres: 0,
-    isStudent: true,
+    isStudent: false,
     course: "",
     institution: "",
     hasBusiness: false,
@@ -144,65 +164,115 @@ function ProfileContent() {
   const [isCustomState, setIsCustomState] = useState(false);
   const [customState, setCustomState] = useState("");
 
+  const populateFormWithProfile = (p: UserProfile) => {
+    if (p.id) setSelectedProfileId(p.id);
+    const saved = Boolean(
+      p.isProfileSaved ??
+      p.is_profile_saved ??
+      (p.occupation && p.state && p.age && p.age > 0 && (p.completenessPercent || 0) > 0)
+    );
+    setIsProfileSaved(saved);
+    if (p.userLevel) {
+      setUserLevel(p.userLevel);
+    } else {
+      setUserLevel(calculateUserLevel(p));
+    }
+    setFormData({
+      id: p.id,
+      relationship: (p.relationship as FamilyRelationship) || "Self",
+      name: p.name || p.fullName || user?.name || user?.email?.split("@")[0] || "",
+      age: p.age || 0,
+      dateOfBirth: p.dateOfBirth || "",
+      gender: p.gender || "",
+      occupation: p.occupation || "",
+      annualIncome: p.annualIncome || "",
+      incomeNumeric: p.incomeNumeric || 0,
+      education: p.education || "",
+      state: p.state || "",
+      district: p.district || "",
+      category: p.category || "",
+      fatherName: p.fatherName || "",
+      completenessPercent: p.completenessPercent || 0,
+      language: p.language || "en",
+      isFarmer: Boolean(p.isFarmer),
+      landHoldingAcres: p.landHoldingAcres || 0,
+      isStudent: Boolean(p.isStudent),
+      course: p.course || "",
+      institution: p.institution || "",
+      hasBusiness: Boolean(p.hasBusiness),
+      businessType: p.businessType || "",
+      isDisabled: Boolean(p.isDisabled),
+      disabilityType: p.disabilityType || "",
+      isTaxPayer: Boolean(p.isTaxPayer),
+      isGovtEmployee: Boolean(p.isGovtEmployee),
+      employmentStatus: p.employmentStatus || ""
+    });
+
+    if (p.occupation) {
+      const isPredefined = OCCUPATION_OPTIONS.filter(o => o !== "Other").includes(p.occupation);
+      if (!isPredefined || p.occupation === "Other") {
+        setIsCustomOccupation(true);
+        setCustomOccupation(p.occupation === "Other" ? "" : p.occupation);
+      } else {
+        setIsCustomOccupation(false);
+        setCustomOccupation("");
+      }
+    } else {
+      setIsCustomOccupation(false);
+      setCustomOccupation("");
+    }
+
+    if (p.education) {
+      const isPredefined = EDUCATION_OPTIONS.filter(e => e !== "Other").includes(p.education);
+      if (!isPredefined || p.education === "Other") {
+        setIsCustomEducation(true);
+        setCustomEducation(p.education === "Other" ? "" : p.education);
+      } else {
+        setIsCustomEducation(false);
+        setCustomEducation("");
+      }
+    } else {
+      setIsCustomEducation(false);
+      setCustomEducation("");
+    }
+
+    if (p.state) {
+      const isPredefined = STATE_OPTIONS.filter(s => s !== "Other").includes(p.state);
+      if (!isPredefined || p.state === "Other") {
+        setIsCustomState(true);
+        setCustomState(p.state === "Other" ? "" : p.state);
+      } else {
+        setIsCustomState(false);
+        setCustomState("");
+      }
+    } else {
+      setIsCustomState(false);
+      setCustomState("");
+    }
+  };
+
   // Load profile from backend on mount
   useEffect(() => {
     async function loadProfile() {
       setLoading(true);
       try {
-        const p = await fetchProfile();
+        const p = authProfile || await fetchProfile();
         if (p) {
-          setFormData((prev) => ({
-            ...prev,
-            ...p,
-            name: p.name || user?.email?.split("@")[0] || "",
-          }));
-
-          if (p.occupation) {
-            const isPredefined = OCCUPATION_OPTIONS.filter(o => o !== "Other").includes(p.occupation);
-            if (!isPredefined || p.occupation === "Other") {
-              setIsCustomOccupation(true);
-              setCustomOccupation(p.occupation === "Other" ? "" : p.occupation);
-            } else {
-              setIsCustomOccupation(false);
-              setCustomOccupation("");
-            }
-          }
-
-          if (p.education) {
-            const isPredefined = EDUCATION_OPTIONS.filter(e => e !== "Other").includes(p.education);
-            if (!isPredefined || p.education === "Other") {
-              setIsCustomEducation(true);
-              setCustomEducation(p.education === "Other" ? "" : p.education);
-            } else {
-              setIsCustomEducation(false);
-              setCustomEducation("");
-            }
-          }
-
-          if (p.state) {
-            const isPredefined = STATE_OPTIONS.filter(s => s !== "Other").includes(p.state);
-            if (!isPredefined || p.state === "Other") {
-              setIsCustomState(true);
-              setCustomState(p.state === "Other" ? "" : p.state);
-            } else {
-              setIsCustomState(false);
-              setCustomState("");
-            }
-          }
+          populateFormWithProfile(p);
         }
       } catch (err) {
-        console.error("Failed to load profile:", err);
+        console.error("Failed to load profile", err);
       } finally {
         setLoading(false);
       }
     }
-
     loadProfile();
-  }, [user]);
+  }, [authProfile]);
+
 
   // Handle Occupation Change and auto-set related helper flags
   const handleOccupationChange = (newOcc: string) => {
-    const occLower = newOcc.toLowerCase();
+    const occLower = (newOcc || "").toLowerCase();
     const isFarmer = occLower.includes("farmer") || occLower.includes("kisan") || occLower.includes("agri");
     const isStudent = occLower.includes("student");
     const isBiz = occLower.includes("business") || occLower.includes("entrepreneur") || occLower.includes("self-employed") || occLower.includes("shopkeeper") || occLower.includes("artisan");
@@ -225,7 +295,7 @@ function ProfileContent() {
     setFormData((prev) => ({
       ...prev,
       annualIncome: bracketValue,
-      incomeNumeric: matched ? matched.numeric : prev.incomeNumeric,
+      incomeNumeric: matched ? matched.numeric : 0,
     }));
   };
 
@@ -285,6 +355,7 @@ function ProfileContent() {
 
       const payload: Partial<UserProfile> = {
         ...formData,
+        relationship: formData.relationship || "Self",
         name: trimmedName,
         occupation: finalOccupation,
         education: finalEducation || formData.education,
@@ -295,9 +366,17 @@ function ProfileContent() {
         gender: isWomanEnt && (!formData.gender || formData.gender === "Female") ? "Female" : formData.gender,
       };
 
-      const updated = await updateProfile(payload);
-      setFormData(updated);
+      const targetId = selectedProfileId || formData.id;
+      const updated = await updateProfile(payload, targetId);
+      populateFormWithProfile(updated);
       updateProfileState(updated);
+      await refreshFamilyProfiles();
+      setIsProfileSaved(true);
+      if (updated.userLevel) {
+        setUserLevel(updated.userLevel);
+      } else {
+        setUserLevel(calculateUserLevel(updated));
+      }
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 5000);
     } catch (err: any) {
@@ -307,7 +386,23 @@ function ProfileContent() {
     }
   };
 
-  const selectedOcc = formData.occupation.toLowerCase();
+  const handleDeleteProfile = async () => {
+    if (!selectedProfileId) return;
+    const currentName = formData.name || formData.relationship || "this relative";
+    if (!window.confirm(`Are you sure you want to remove the profile for ${currentName}?`)) return;
+
+    const ok = await deleteProfile(selectedProfileId);
+    if (ok) {
+      const refreshed = await refreshFamilyProfiles();
+      const nextActive = refreshed.find(p => p.relationship === "Self") || refreshed[0];
+      if (nextActive) {
+        populateFormWithProfile(nextActive);
+        switchActiveProfile(nextActive);
+      }
+    }
+  };
+
+  const selectedOcc = (formData.occupation || "").toLowerCase();
   const isFarmerSelected = selectedOcc.includes("farmer");
   const isStudentSelected = selectedOcc.includes("student");
   const isBusinessSelected = selectedOcc.includes("business") || selectedOcc.includes("entrepreneur") || selectedOcc.includes("self-employed") || selectedOcc.includes("artisan");
@@ -345,13 +440,138 @@ function ProfileContent() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Link
-              href="/schemes"
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-blue hover:bg-brand-blue-dark text-white rounded-xl text-xs sm:text-sm font-bold shadow-xs transition"
+            <button
+              type="button"
+              disabled={!isProfileSaved}
+              onClick={() => {
+                if (isProfileSaved) router.push("/schemes");
+              }}
+              title={!isProfileSaved ? "Please save your profile details before finding schemes." : "View matching schemes"}
+              className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold shadow-xs transition ${
+                isProfileSaved
+                  ? "bg-brand-blue hover:bg-brand-blue-dark text-white cursor-pointer"
+                  : "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-60 pointer-events-none"
+              }`}
             >
+              {!isProfileSaved && <Lock className="w-3.5 h-3.5 text-slate-400" />}
               <span>View Matching Schemes</span>
               <ArrowRight className="w-4 h-4" />
-            </Link>
+            </button>
+          </div>
+        </div>
+
+        {/* Family Member Profile Tabs Switcher */}
+        <div className="p-4 bg-white rounded-2xl border border-brand-border shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none flex-1">
+            <span className="text-2xs font-extrabold uppercase text-slate-400 shrink-0 flex items-center gap-1 mr-1">
+              <Users className="w-3.5 h-3.5 text-slate-500" />
+              <span>Editing Beneficiary:</span>
+            </span>
+
+            {familyProfiles && familyProfiles.map((p) => {
+              const isSelected = (selectedProfileId && p.id === selectedProfileId) || (!selectedProfileId && p.relationship === "Self");
+              const rel = p.relationship || "Self";
+              const icon = rel === "Father" ? "👨" : rel === "Mother" ? "👩" : rel === "Child" ? "🧒" : rel === "Spouse" ? "💍" : "👤";
+
+              return (
+                <button
+                  key={p.id || `${rel}-${p.name}`}
+                  type="button"
+                  onClick={() => {
+                    populateFormWithProfile(p);
+                    switchActiveProfile(p);
+                  }}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap border shrink-0 ${
+                    isSelected
+                      ? "bg-brand-navy text-white border-brand-navy shadow-xs ring-2 ring-brand-blue/30"
+                      : "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200"
+                  }`}
+                >
+                  <span>{icon}</span>
+                  <span>{p.name || rel}</span>
+                  <span className={`text-2xs px-1.5 py-0.2 rounded-md ${
+                    isSelected ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"
+                  }`}>
+                    {rel}
+                  </span>
+                  {isSelected && <Check className="w-3 h-3 text-emerald-400" />}
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-brand-blue hover:bg-brand-blue-dark text-white transition shadow-2xs shrink-0 self-start sm:self-auto"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Add Relative</span>
+          </button>
+        </div>
+
+        {/* Profile Validation Notice when unsaved */}
+        {!isProfileSaved && (
+          <div className="p-4 rounded-2xl bg-amber-50 border-2 border-amber-300 flex items-center justify-between gap-3 text-amber-900 shadow-sm animate-fadeIn">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+                <AlertCircle className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <h4 className="text-xs sm:text-sm font-extrabold text-amber-900">
+                  Please save your profile details before finding schemes.
+                </h4>
+                <p className="text-2xs text-amber-700">
+                  Complete your occupation, state, age, and demographics below, then click &quot;Save Profile Details&quot; to unlock schemes.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Dynamic User Level & Profile Progression Widget */}
+        <div className="p-5 bg-white rounded-2xl border border-brand-border shadow-card grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Profile Completeness</span>
+              <span className="text-xs font-black text-brand-blue">{formData.completenessPercent}%</span>
+            </div>
+            <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+              <div
+                className="bg-brand-blue h-2.5 rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(100, Math.max(5, formData.completenessPercent))}%` }}
+              />
+            </div>
+            <p className="text-2xs text-slate-500">
+              {formData.completenessPercent >= 100
+                ? "All primary matching eligibility fields filled."
+                : "Fill occupation, state, age, and income to achieve 100% eligibility accuracy."}
+            </p>
+          </div>
+
+          <div className="space-y-2 md:border-l md:border-slate-100 md:pl-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Dynamic Citizen Level</span>
+              <span className={`px-2.5 py-0.5 rounded-full text-2xs font-extrabold border ${
+                userLevel?.level === 5 ? "bg-amber-50 text-amber-700 border-amber-200" :
+                userLevel?.level === 4 ? "bg-purple-50 text-purple-700 border-purple-200" :
+                userLevel?.level === 3 ? "bg-indigo-50 text-indigo-700 border-indigo-200" :
+                userLevel?.level === 2 ? "bg-teal-50 text-teal-700 border-teal-200" :
+                "bg-blue-50 text-brand-blue border-blue-200"
+              }`}>
+                Level {userLevel?.level || 1} • {userLevel?.levelName || "New Citizen"}
+              </span>
+            </div>
+            <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-brand-blue to-teal-500 h-2.5 rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(100, Math.max(5, userLevel?.score || 10))}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-2xs text-slate-500">
+              <span>{userLevel?.score || 0} / 100 XP</span>
+              <span>{userLevel?.pointsToNext ? `${userLevel.pointsToNext} pts to Level ${(userLevel?.level || 1) + 1}` : "Top Level Champion"}</span>
+            </div>
           </div>
         </div>
 
@@ -360,7 +580,7 @@ function ProfileContent() {
           <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs sm:text-sm flex items-center justify-between gap-3 shadow-xs animate-fadeIn">
             <div className="flex items-center gap-2 font-semibold">
               <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-              <span>Profile updated successfully! Scheme recommendations have been recalculated based on your new data.</span>
+              <span>Profile saved and validated successfully! You can now find matching government schemes.</span>
             </div>
             <Link
               href="/schemes"
@@ -391,6 +611,25 @@ function ProfileContent() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Relationship to Account Holder */}
+              <div className="sm:col-span-2 space-y-1.5">
+                <label className="block text-xs font-bold text-slate-700">
+                  Relationship to Account Holder <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={formData.relationship || "Self"}
+                  onChange={(e) => setFormData({ ...formData, relationship: e.target.value as any })}
+                  className="w-full text-xs sm:text-sm p-3 border border-brand-border rounded-xl focus:ring-2 focus:ring-brand-blue/30 focus:border-brand-blue bg-white font-medium"
+                >
+                  <option value="Self">Self (Account Holder)</option>
+                  <option value="Father">Father</option>
+                  <option value="Mother">Mother</option>
+                  <option value="Child">Child (Son / Daughter)</option>
+                  <option value="Spouse">Spouse (Husband / Wife)</option>
+                  <option value="Other">Other Dependent / Relative</option>
+                </select>
+              </div>
+
               {/* Full Name */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
@@ -412,10 +651,11 @@ function ProfileContent() {
                   Gender
                 </label>
                 <select
-                  value={formData.gender || "All"}
+                  value={formData.gender || ""}
                   onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
                   className="w-full text-xs sm:text-sm p-3 border border-brand-border rounded-xl focus:ring-2 focus:ring-brand-blue/30 focus:border-brand-blue bg-white"
                 >
+                  <option value="">-- Select Gender --</option>
                   <option value="Female">Female</option>
                   <option value="Male">Male</option>
                   <option value="Transgender">Transgender</option>
@@ -433,7 +673,7 @@ function ProfileContent() {
                   required
                   min={1}
                   max={120}
-                  value={formData.age || ""}
+                  value={formData.age ? formData.age : ""}
                   onChange={(e) => setFormData({ ...formData, age: parseInt(e.target.value) || 0 })}
                   placeholder="e.g. 21"
                   className="w-full text-xs sm:text-sm p-3 border border-brand-border rounded-xl focus:ring-2 focus:ring-brand-blue/30 focus:border-brand-blue"
@@ -460,7 +700,7 @@ function ProfileContent() {
                   State of Residence <span className="text-rose-500">*</span>
                 </label>
                 <select
-                  value={isCustomState ? "Other" : (STATE_OPTIONS.includes(formData.state) ? formData.state : "Other")}
+                  value={isCustomState ? "Other" : (formData.state ? (STATE_OPTIONS.includes(formData.state) ? formData.state : "Other") : "")}
                   onChange={(e) => {
                     const val = e.target.value;
                     if (val === "Other") {
@@ -475,6 +715,7 @@ function ProfileContent() {
                   }}
                   className="w-full text-xs sm:text-sm p-3 border border-brand-border rounded-xl focus:ring-2 focus:ring-brand-blue/30 focus:border-brand-blue bg-white"
                 >
+                  <option value="">-- Select State --</option>
                   {STATE_OPTIONS.map((st) => (
                     <option key={st} value={st}>{st}</option>
                   ))}
@@ -513,10 +754,11 @@ function ProfileContent() {
                   Social Category (Caste Group)
                 </label>
                 <select
-                  value={formData.category || "General"}
+                  value={formData.category || ""}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                   className="w-full text-xs sm:text-sm p-3 border border-brand-border rounded-xl focus:ring-2 focus:ring-brand-blue/30 focus:border-brand-blue bg-white"
                 >
+                  <option value="">-- Select Category --</option>
                   {SOCIAL_CATEGORIES.map((cat) => (
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
@@ -555,7 +797,7 @@ function ProfileContent() {
                   Primary Occupation <span className="text-rose-500">*</span>
                 </label>
                 <select
-                  value={isCustomOccupation ? "Other" : (OCCUPATION_OPTIONS.includes(formData.occupation) ? formData.occupation : "Other")}
+                  value={isCustomOccupation ? "Other" : (formData.occupation ? (OCCUPATION_OPTIONS.includes(formData.occupation) ? formData.occupation : "Other") : "")}
                   onChange={(e) => {
                     const val = e.target.value;
                     if (val === "Other") {
@@ -570,6 +812,7 @@ function ProfileContent() {
                   }}
                   className="w-full text-xs sm:text-sm p-3 border border-brand-border rounded-xl focus:ring-2 focus:ring-brand-blue/30 focus:border-brand-blue bg-white font-semibold"
                 >
+                  <option value="">-- Select Occupation --</option>
                   {OCCUPATION_OPTIONS.map((occ) => (
                     <option key={occ} value={occ}>{occ}</option>
                   ))}
@@ -599,7 +842,7 @@ function ProfileContent() {
                   Educational Qualification
                 </label>
                 <select
-                  value={isCustomEducation ? "Other" : (EDUCATION_OPTIONS.includes(formData.education) ? formData.education : "Other")}
+                  value={isCustomEducation ? "Other" : (formData.education ? (EDUCATION_OPTIONS.includes(formData.education) ? formData.education : "Other") : "")}
                   onChange={(e) => {
                     const val = e.target.value;
                     if (val === "Other") {
@@ -614,6 +857,7 @@ function ProfileContent() {
                   }}
                   className="w-full text-xs sm:text-sm p-3 border border-brand-border rounded-xl focus:ring-2 focus:ring-brand-blue/30 focus:border-brand-blue bg-white"
                 >
+                  <option value="">-- Select Qualification --</option>
                   {EDUCATION_OPTIONS.map((edu) => (
                     <option key={edu} value={edu}>{edu}</option>
                   ))}
@@ -640,10 +884,11 @@ function ProfileContent() {
                   Annual Family Income
                 </label>
                 <select
-                  value={formData.annualIncome || "< 1 Lakh"}
+                  value={formData.annualIncome || ""}
                   onChange={(e) => handleIncomeChange(e.target.value)}
                   className="w-full text-xs sm:text-sm p-3 border border-brand-border rounded-xl focus:ring-2 focus:ring-brand-blue/30 focus:border-brand-blue bg-white"
                 >
+                  <option value="">-- Select Annual Family Income --</option>
                   {INCOME_BRACKETS.map((inc) => (
                     <option key={inc.value} value={inc.value}>{inc.label}</option>
                   ))}
@@ -915,11 +1160,31 @@ function ProfileContent() {
 
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-slate-100">
-            <p className="text-xs text-slate-500">
-              Changes are saved to your secure profile and immediately update your matched schemes list.
-            </p>
+            <div className="space-y-1">
+              <p className="text-xs text-slate-500">
+                Changes are saved to your secure profile and immediately update your matched schemes list.
+              </p>
+              {!isProfileSaved && (
+                <p className="text-xs font-bold text-amber-600 flex items-center gap-1.5 animate-fadeIn">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>Please save your profile details before finding schemes.</span>
+                </p>
+              )}
+            </div>
 
             <div className="flex items-center gap-3 w-full sm:w-auto">
+              {formData.relationship !== "Self" && selectedProfileId && (
+                <button
+                  type="button"
+                  onClick={handleDeleteProfile}
+                  className="inline-flex items-center gap-1.5 px-4 py-3.5 text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-xl font-bold text-xs transition"
+                  title="Remove this family member profile"
+                >
+                  <Trash2 className="w-4 h-4 text-rose-500" />
+                  <span>Remove Relative</span>
+                </button>
+              )}
+
               <button
                 type="submit"
                 disabled={saving}
@@ -929,19 +1194,41 @@ function ProfileContent() {
                 <span>{saving ? "Saving Profile..." : "Save Profile Details"}</span>
               </button>
 
-              <Link
-                href="/schemes"
-                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-white hover:bg-slate-50 text-brand-navy border border-brand-border font-bold text-sm rounded-xl shadow-xs transition"
+              <button
+                type="button"
+                id="find-schemes-button"
+                disabled={!isProfileSaved || saving}
+                onClick={() => {
+                  if (isProfileSaved) {
+                    router.push("/schemes");
+                  }
+                }}
+                title={!isProfileSaved ? "Please save your profile details before finding schemes." : "Find matching government schemes"}
+                className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-3.5 font-bold text-sm rounded-xl shadow-xs transition ${
+                  isProfileSaved && !saving
+                    ? "bg-white hover:bg-slate-50 text-brand-navy border border-brand-border cursor-pointer shadow-xs"
+                    : "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-50 pointer-events-none"
+                }`}
               >
+                {!isProfileSaved && <Lock className="w-3.5 h-3.5 text-slate-400" />}
                 <span>Find Schemes</span>
                 <ArrowRight className="w-4 h-4" />
-              </Link>
+              </button>
             </div>
           </div>
 
         </form>
 
       </div>
+
+      <FamilyProfileModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onProfileSaved={(saved) => {
+          populateFormWithProfile(saved);
+          refreshFamilyProfiles();
+        }}
+      />
     </main>
   );
 }

@@ -2,7 +2,7 @@ import datetime
 from sqlalchemy import (
     Column, Integer, String, Boolean, DateTime, Float, ForeignKey, Text, JSON
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, relationship as sa_relationship
 from database import Base
 
 # Gracefully handle pgvector if available, fallback to JSON for standard PostgreSQL
@@ -26,7 +26,8 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
-    profile = relationship("Profile", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    profiles = relationship("Profile", back_populates="user", cascade="all, delete-orphan", foreign_keys="Profile.user_id", order_by="Profile.id.asc()")
+    profile = relationship("Profile", primaryjoin="and_(User.id == Profile.user_id, or_(Profile.relationship == 'Self', Profile.relationship == None))", uselist=False, viewonly=True)
     consents = relationship("ConsentRecord", back_populates="user", cascade="all, delete-orphan")
     notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
     audit_logs = relationship("AuditLog", back_populates="user")
@@ -50,7 +51,8 @@ class User(Base):
 class Profile(Base):
     __tablename__ = "profiles"
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    relationship = Column(String(50), default="Self")  # Self, Father, Mother, Child, Spouse, Other
     full_name = Column(String(255), nullable=True)
     avatar_url = Column(String(500), nullable=True)
     age = Column(Integer, nullable=True)
@@ -80,31 +82,32 @@ class Profile(Base):
     completeness_percent = Column(Integer, default=0)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
-    user = relationship("User", back_populates="profile")
+    user = sa_relationship("User", back_populates="profiles")
 
     def to_dict(self):
         return {
             "id": self.id,
             "userId": self.user_id,
             "user_id": self.user_id,
-            "name": self.full_name or "Citizen",
-            "fullName": self.full_name or "Citizen",
-            "full_name": self.full_name or "Citizen",
+            "relationship": self.relationship or "Self",
+            "name": self.full_name or "",
+            "fullName": self.full_name or "",
+            "full_name": self.full_name or "",
             "avatarUrl": self.avatar_url,
             "avatar_url": self.avatar_url,
             "age": self.age or 0,
-            "gender": self.gender,
+            "gender": self.gender or "",
             "occupation": self.occupation or "",
             "employmentStatus": self.employment_status or "",
             "employment_status": self.employment_status or "",
-            "annualIncome": self.annual_income or "< 1 Lakh",
-            "annual_income": self.annual_income or "< 1 Lakh",
+            "annualIncome": self.annual_income or "",
+            "annual_income": self.annual_income or "",
             "incomeNumeric": self.income_numeric,
             "income_numeric": self.income_numeric,
             "education": self.education or "",
             "state": self.state or "",
             "district": self.district or "",
-            "category": self.category or "General",
+            "category": self.category or "",
             "fatherName": self.father_name or "",
             "father_name": self.father_name or "",
             "dateOfBirth": self.date_of_birth or "",
@@ -133,6 +136,8 @@ class Profile(Base):
             "preferred_language": self.preferred_language or "en",
             "completenessPercent": self.completeness_percent or 0,
             "completeness_percent": self.completeness_percent or 0,
+            "isProfileSaved": bool(self.occupation and self.state and (self.age is not None and self.age > 0) and (self.completeness_percent or 0) > 0),
+            "is_profile_saved": bool(self.occupation and self.state and (self.age is not None and self.age > 0) and (self.completeness_percent or 0) > 0),
             "updatedAt": self.updated_at.isoformat() if self.updated_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
@@ -724,17 +729,24 @@ class Application(Base):
             "id": self.application_number,
             "numericId": self.id,
             "schemeId": str(self.scheme_id),
+            "scheme_id": self.scheme_id,
             "schemeName": self.scheme_name,
+            "scheme_name": self.scheme_name,
             "applicantName": self.applicant_name or "",
+            "applicant_name": self.applicant_name or "",
             "fatherName": self.father_name or "",
+            "father_name": self.father_name or "",
             "dateOfBirth": self.date_of_birth or "",
+            "date_of_birth": self.date_of_birth or "",
             "education": self.education or "",
             "familyIncome": self.family_income or "",
+            "family_income": self.family_income or "",
             "state": self.state or "",
             "district": self.district or "",
             "status": self.status,
             "description": self.description,
             "createdAt": self.created_at.strftime("%d %b %Y") if self.created_at else "",
+            "created_at": self.created_at.isoformat() if self.created_at else "",
         }
 
 class ApplicationField(Base):

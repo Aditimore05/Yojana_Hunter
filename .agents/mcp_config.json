@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "yojana-hunter-navigation": {
+      "command": "python",
+      "args": ["backend/mcp_server.py"],
+      "env": {
+        "PYTHONPATH": "backend",
+        "FRONTEND_BASE_URL": "http://localhost:3000"
+      }
+    }
+  }
+}

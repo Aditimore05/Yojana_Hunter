@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { 
   MessageSquare, 
   X, 
@@ -9,33 +9,30 @@ import {
   Mic, 
   Sparkles, 
   Layers, 
-  Image as ImageIcon, 
   Tag, 
-  Headphones, 
   Bot, 
   User as UserIcon,
-  Minimize2
+  Compass,
+  ArrowRight,
+  ExternalLink,
+  Lock,
+  LayoutDashboard,
+  UserCheck
 } from "lucide-react";
-import { sendChatMessage } from "@/services/chatService";
-
-interface Message {
-  id: string;
-  sender: "bot" | "user";
-  text: string;
-  time: string;
-}
+import { sendChatMessageDetailed, ChatMessage, NavigationDestination } from "@/services/chatService";
 
 export const ChatbotWidget: React.FC = () => {
   const pathname = usePathname();
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [language, setLanguage] = useState<"en" | "hi" | "mr">("en");
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
+  const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "m-0",
       sender: "bot",
-      text: "Hello! I am your Yojana Hunter Assistant. Ask me anything about using Yojana Hunter, finding government schemes, profile setup, checking eligibility, or application procedures.",
+      text: "Hello! I am your Yojana Hunter Assistant. Ask me anything about finding welfare schemes, checking eligibility, or navigating the platform (Dashboard, Schemes, Profile, AI Scheme Discovery, etc.).",
       time: "Just now",
     },
   ]);
@@ -57,7 +54,7 @@ export const ChatbotWidget: React.FC = () => {
     const query = textToSend || input;
     if (!query.trim() || loading) return;
 
-    const userMsg: Message = {
+    const userMsg: ChatMessage = {
       id: `usr-${Date.now()}`,
       sender: "user",
       text: query,
@@ -70,12 +67,14 @@ export const ChatbotWidget: React.FC = () => {
 
     try {
       const historyContext = messages.map(m => ({ sender: m.sender, text: m.text }));
-      const botReply = await sendChatMessage(query, language, historyContext);
-      const botMsg: Message = {
+      const response = await sendChatMessageDetailed(query, language, historyContext);
+      
+      const botMsg: ChatMessage = {
         id: `bot-${Date.now()}`,
         sender: "bot",
-        text: botReply,
+        text: response.reply,
         time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        navigation: response.navigation,
       };
       setMessages((prev) => [...prev, botMsg]);
     } catch {
@@ -94,14 +93,14 @@ export const ChatbotWidget: React.FC = () => {
   };
 
   const handleQuickAction = (actionTitle: string) => {
-    if (actionTitle === "Student Schemes") {
-      handleSend("What schemes and education loans are available for students?");
-    } else if (actionTitle === "Farmer Schemes") {
-      handleSend("What schemes and subsidies are available for agricultural farmers?");
-    } else if (actionTitle === "Check Eligibility") {
-      handleSend("How do I check my eligibility for government welfare schemes?");
-    } else if (actionTitle === "Required Documents") {
-      handleSend("What official certificates and documents are needed to apply?");
+    if (actionTitle === "Dashboard") {
+      handleSend("Take me to Dashboard");
+    } else if (actionTitle === "Schemes") {
+      handleSend("Open Schemes");
+    } else if (actionTitle === "AI Discovery") {
+      handleSend("Open AI Scheme Discovery");
+    } else if (actionTitle === "My Profile") {
+      handleSend("Navigate to Profile");
     }
   };
 
@@ -125,7 +124,7 @@ export const ChatbotWidget: React.FC = () => {
 
       {/* Expandable Dark Navy & Blue Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 w-[92vw] sm:w-[420px] max-h-[85vh] h-[600px] flex flex-col bg-brand-navy-dark text-white rounded-2xl shadow-floating border border-slate-700/80 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 w-[92vw] sm:w-[440px] max-h-[85vh] h-[640px] flex flex-col bg-brand-navy-dark text-white rounded-2xl shadow-floating border border-slate-700/80 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
           {/* Header */}
           <div className="p-4 bg-gradient-to-r from-slate-900 to-brand-navy border-b border-slate-700 flex items-start justify-between">
             <div className="flex items-center gap-3">
@@ -138,7 +137,7 @@ export const ChatbotWidget: React.FC = () => {
                   <Sparkles className="w-3.5 h-3.5 text-teal-300" />
                 </h3>
                 <p className="text-xs text-slate-300 line-clamp-1">
-                  Ask me anything about schemes, documents or application process.
+                  Ask to navigate to any page, explore schemes, or check criteria.
                 </p>
               </div>
             </div>
@@ -154,7 +153,7 @@ export const ChatbotWidget: React.FC = () => {
 
           {/* Language Translation Bar */}
           <div className="px-4 py-2 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between text-xs">
-            <span className="text-slate-400 font-medium">Language Translation</span>
+            <span className="text-slate-400 font-medium">Language</span>
             <div className="flex items-center gap-1.5">
               {(["en", "hi", "mr"] as const).map((l) => (
                 <button
@@ -172,35 +171,35 @@ export const ChatbotWidget: React.FC = () => {
             </div>
           </div>
 
-          {/* Quick Action Grid (2x2) */}
-          <div className="p-3 bg-slate-900/60 border-b border-slate-800/80 grid grid-cols-2 gap-2">
+          {/* Quick Action Navigation Grid (2x2) */}
+          <div className="p-2.5 bg-slate-900/60 border-b border-slate-800/80 grid grid-cols-2 gap-2">
             <button
-              onClick={() => handleQuickAction("Student Schemes")}
+              onClick={() => handleQuickAction("Dashboard")}
+              className="flex items-center gap-2 p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 text-xs text-slate-200 transition text-left border border-slate-700/50"
+            >
+              <LayoutDashboard className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+              <span className="truncate font-medium">Go to Dashboard</span>
+            </button>
+            <button
+              onClick={() => handleQuickAction("Schemes")}
               className="flex items-center gap-2 p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 text-xs text-slate-200 transition text-left border border-slate-700/50"
             >
               <Layers className="w-3.5 h-3.5 text-teal-400 shrink-0" />
-              <span className="truncate font-medium">Student Schemes</span>
+              <span className="truncate font-medium">Open Schemes</span>
             </button>
             <button
-              onClick={() => handleQuickAction("Farmer Schemes")}
+              onClick={() => handleQuickAction("My Profile")}
               className="flex items-center gap-2 p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 text-xs text-slate-200 transition text-left border border-slate-700/50"
             >
-              <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-              <span className="truncate font-medium">Farmer Schemes</span>
+              <UserIcon className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span className="truncate font-medium">Open Profile</span>
             </button>
             <button
-              onClick={() => handleQuickAction("Check Eligibility")}
+              onClick={() => handleQuickAction("AI Discovery")}
               className="flex items-center gap-2 p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 text-xs text-slate-200 transition text-left border border-slate-700/50"
             >
-              <UserIcon className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-              <span className="truncate font-medium">Check Eligibility</span>
-            </button>
-            <button
-              onClick={() => handleQuickAction("Required Documents")}
-              className="flex items-center gap-2 p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 text-xs text-slate-200 transition text-left border border-slate-700/50"
-            >
-              <Tag className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-              <span className="truncate font-medium">Required Documents</span>
+              <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <span className="truncate font-medium">AI Discovery (Admin)</span>
             </button>
           </div>
 
@@ -217,14 +216,79 @@ export const ChatbotWidget: React.FC = () => {
                   </div>
                 )}
                 <div
-                  className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-xs sm:text-sm leading-relaxed ${
+                  className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs sm:text-sm leading-relaxed ${
                     m.sender === "user"
                       ? "bg-brand-blue text-white rounded-br-none shadow-sm"
                       : "bg-slate-800 text-slate-100 rounded-bl-none border border-slate-700"
                   }`}
                 >
                   <div className="whitespace-pre-wrap leading-relaxed">{m.text}</div>
-                  <span className="block mt-1 text-[10px] text-slate-300 opacity-70 text-right">
+
+                  {/* MCP-based Navigation Interactive Card */}
+                  {m.navigation && (
+                    <div className="mt-3 p-3 rounded-xl bg-slate-900/90 border border-teal-500/40 space-y-2.5 shadow-md">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <Compass className="w-4 h-4 text-teal-400 shrink-0 animate-pulse" />
+                          <span className="font-bold text-xs text-white truncate">
+                            {m.navigation.title}
+                          </span>
+                        </div>
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 border flex items-center gap-1 ${
+                            m.navigation.requires_admin
+                              ? "bg-rose-500/20 text-rose-300 border-rose-500/40"
+                              : m.navigation.requires_auth
+                              ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                              : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                          }`}
+                        >
+                          {m.navigation.requires_admin && <Lock className="w-2.5 h-2.5" />}
+                          <span>
+                            {m.navigation.requires_admin
+                              ? "Admin Required"
+                              : m.navigation.requires_auth
+                              ? "Login Required"
+                              : "Public"}
+                          </span>
+                        </span>
+                      </div>
+
+                      <div className="text-[11px] text-slate-300 bg-slate-950/50 p-2 rounded-lg border border-slate-800 space-y-1">
+                        <div className="text-slate-400 text-[10px] font-semibold uppercase tracking-wider">
+                          UI Navigation Steps:
+                        </div>
+                        <div>{m.navigation.ui_instructions}</div>
+                      </div>
+
+                      <div className="pt-1 flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (m.navigation?.route) {
+                              router.push(m.navigation.route);
+                            }
+                          }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-teal-500 to-brand-blue hover:from-teal-400 hover:to-brand-blue-dark text-white rounded-lg text-xs font-bold shadow-sm transition active:scale-95 cursor-pointer"
+                        >
+                          <span>Open {m.navigation.title.split("/")[0].trim()}</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+
+                        <a
+                          href={m.navigation.full_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[11px] text-teal-300 hover:text-teal-200 underline flex items-center gap-1 px-2 py-1 rounded hover:bg-slate-800 transition"
+                        >
+                          <span>Direct Link</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    </div>
+                  )}
+
+                  <span className="block mt-1.5 text-[10px] text-slate-400 text-right">
                     {m.time}
                   </span>
                 </div>
@@ -271,14 +335,14 @@ export const ChatbotWidget: React.FC = () => {
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Type your message..."
+                placeholder="Ask e.g. 'Open Schemes', 'Go to Dashboard'..."
                 className="flex-1 bg-transparent text-xs sm:text-sm text-white placeholder-slate-400 focus:outline-none"
               />
 
               <button
                 type="submit"
                 disabled={!input.trim() || loading}
-                className="p-1.5 bg-brand-blue hover:bg-brand-blue-dark disabled:opacity-40 disabled:hover:bg-brand-blue rounded-lg text-white transition"
+                className="p-1.5 bg-brand-blue hover:bg-brand-blue-dark disabled:opacity-40 disabled:hover:bg-brand-blue rounded-lg text-white transition cursor-pointer"
               >
                 <Send className="w-3.5 h-3.5" />
               </button>

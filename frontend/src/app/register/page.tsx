@@ -19,8 +19,7 @@ import {
   X
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { getStoredProfile } from "@/lib/storage";
-import { UserProfile } from "@/types/profile";
+import { clearAllUserData } from "@/lib/storage";
 
 function RegisterFormContent() {
   const router = useRouter();
@@ -34,9 +33,6 @@ function RegisterFormContent() {
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [linkExistingProfile, setLinkExistingProfile] = useState(true);
-  const [existingProfile, setExistingProfile] = useState<UserProfile | null>(null);
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,10 +41,6 @@ function RegisterFormContent() {
   useEffect(() => {
     if (isAuthenticated) {
       router.replace(redirectUrl);
-    }
-    const stored = getStoredProfile();
-    if (stored && (stored.occupation || stored.state)) {
-      setExistingProfile(stored);
     }
   }, [isAuthenticated, redirectUrl, router]);
 
@@ -95,17 +87,14 @@ function RegisterFormContent() {
 
     setLoading(true);
     try {
-      const payload: any = {
+      const payload = {
         name: trimmedName,
         email: trimmedEmail,
         password,
         confirmPassword,
       };
 
-      if (linkExistingProfile && existingProfile) {
-        payload.profileData = existingProfile;
-      }
-
+      clearAllUserData();
       const res = await register(payload);
 
       if (res.success) {
@@ -313,27 +302,6 @@ function RegisterFormContent() {
               </div>
             </div>
 
-            {/* Preserved Anonymous Profile Association with Consent */}
-            {existingProfile && (existingProfile.occupation || existingProfile.state) && (
-              <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-xl space-y-1.5 text-xs text-slate-700">
-                <label className="flex items-start gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={linkExistingProfile}
-                    onChange={(e) => setLinkExistingProfile(e.target.checked)}
-                    className="w-4 h-4 rounded text-brand-blue border-slate-300 focus:ring-brand-blue mt-0.5"
-                  />
-                  <div>
-                    <span className="font-semibold text-brand-navy">
-                      Save my scheme eligibility profile to this account
-                    </span>
-                    <p className="text-2xs text-slate-500 mt-0.5">
-                      Occupation: {existingProfile.occupation || "Citizen"} · State: {existingProfile.state || "All India"} · Category: {existingProfile.category || "General"}
-                    </p>
-                  </div>
-                </label>
-              </div>
-            )}
 
             {/* Privacy Policy and Terms Agreement */}
             <div className="pt-1">

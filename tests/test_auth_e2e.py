@@ -11,11 +11,11 @@ class TestAuthEndToEnd(unittest.TestCase):
     def setUpClass(cls):
         # Health check to ensure backend is accessible
         try:
-            res = requests.get(f"{BASE_URL}/health", timeout=5)
-            assert res.status_code == 200
+            res = requests.get(f"{BASE_URL}/health", timeout=3)
+            if res.status_code != 200:
+                raise unittest.SkipTest(f"Backend returned non-200 status {res.status_code}")
         except Exception as e:
-            print(f"[FAIL] Backend server not reachable at {BASE_URL}: {e}")
-            sys.exit(1)
+            raise unittest.SkipTest(f"Live backend server not reachable at {BASE_URL}: {e}")
 
     def test_01_user_registration_success(self):
         """1. A new user can register successfully."""

@@ -8,7 +8,6 @@ import {
   Layers, 
   User, 
   Bookmark, 
-  FileText, 
   Settings, 
   Sparkles, 
   LogIn, 
@@ -24,7 +23,7 @@ export const BottomNavigation: React.FC = () => {
     return null;
   }
 
-  // When authenticated: show Dashboard, Start Now, Schemes, My Profile, My Schemes, Applications (6 items)
+  // When authenticated: show Dashboard, Start Now, Schemes, My Profile, My Schemes (5 items)
   // When unauthenticated: strictly show Home, Sign In, Register (3 items - Schemes and Start Now are completely hidden)
   const navItems = isAuthenticated
     ? [
@@ -62,13 +61,6 @@ export const BottomNavigation: React.FC = () => {
           href: "/saved-schemes",
           icon: Bookmark,
           isActive: pathname === "/saved-schemes",
-        },
-        {
-          name: "Applications",
-          label: "Applications",
-          href: "/applications",
-          icon: FileText,
-          isActive: pathname === "/applications" || pathname === "/application-draft",
         },
       ]
     : [

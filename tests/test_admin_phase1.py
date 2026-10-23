@@ -45,40 +45,50 @@ def client(test_app):
 def init_data(test_app):
     db = SessionLocal()
 
-    # Create admin user
-    admin = User(
-        email="testadmin@yojanahunter.gov.in",
-        mobile="9999999999",
-        password_hash=hash_password("AdminSecurePassword123!"),
-        role="admin",
-        is_active=True
-    )
-    db.add(admin)
+    admin = db.query(User).filter(User.email == "testadmin@yojanahunter.gov.in").first()
+    if not admin:
+        admin = User(
+            email="testadmin@yojanahunter.gov.in",
+            mobile="9999999999",
+            password_hash=hash_password("AdminSecurePassword123!"),
+            role="admin",
+            is_active=True
+        )
+        db.add(admin)
+    else:
+        admin.password_hash = hash_password("AdminSecurePassword123!")
+        admin.role = "admin"
+        admin.is_active = True
 
-    # Create regular citizen user
-    citizen = User(
-        email="citizen@example.com",
-        mobile="8888888888",
-        password_hash=hash_password("CitizenPass123!"),
-        role="citizen",
-        is_active=True
-    )
-    db.add(citizen)
-    db.flush()
+    citizen = db.query(User).filter(User.email == "citizen@example.com").first()
+    if not citizen:
+        citizen = User(
+            email="citizen@example.com",
+            mobile="8888888888",
+            password_hash=hash_password("CitizenPass123!"),
+            role="citizen",
+            is_active=True
+        )
+        db.add(citizen)
+        db.flush()
 
-    # Create profile for citizen
-    profile = Profile(
-        user_id=citizen.id,
-        full_name="Citizen Tester",
-        age=22,
-        gender="Female",
-        occupation="Student",
-        annual_income="< 1 Lakh",
-        income_numeric=85000,
-        education="Graduate",
-        state="Maharashtra"
-    )
-    db.add(profile)
+        profile = Profile(
+            user_id=citizen.id,
+            full_name="Citizen Tester",
+            age=22,
+            gender="Female",
+            occupation="Student",
+            annual_income="< 1 Lakh",
+            income_numeric=85000,
+            education="Graduate",
+            state="Maharashtra"
+        )
+        db.add(profile)
+    else:
+        citizen.password_hash = hash_password("CitizenPass123!")
+        citizen.role = "citizen"
+        citizen.is_active = True
+
     db.commit()
     db.close()
 
@@ -168,10 +178,11 @@ def test_admin_scheme_management_workflow(client):
     assert any(s["slug"] == scheme_slug for s in admin_schemes)
 
     # Step 6: Draft scheme is HIDDEN from public users
-    pub_list_resp = client.get("/api/schemes")
+    pub_list_resp = client.get("/api/schemes?q=Yuva Sambal")
     assert pub_list_resp.status_code == 200
-    public_schemes = pub_list_resp.get_json()
-    assert not any(s["id"] == scheme_slug for s in public_schemes)
+    pub_json = pub_list_resp.get_json()
+    public_schemes = pub_json.get("schemes", pub_json) if isinstance(pub_json, dict) else pub_json
+    assert not any(s.get("id") == scheme_slug or s.get("slug") == scheme_slug for s in public_schemes)
 
     pub_detail_resp = client.get(f"/api/schemes/{scheme_slug}")
     assert pub_detail_resp.status_code == 404
@@ -183,10 +194,11 @@ def test_admin_scheme_management_workflow(client):
     assert patch_resp.get_json()["isActive"] == True
 
     # Step 8: Published scheme now APPEARS on public scheme listing and details
-    pub_list_after = client.get("/api/schemes")
+    pub_list_after = client.get("/api/schemes?q=Yuva Sambal")
     assert pub_list_after.status_code == 200
-    public_schemes_after = pub_list_after.get_json()
-    assert any(s["id"] == scheme_slug for s in public_schemes_after)
+    pub_after_json = pub_list_after.get_json()
+    public_schemes_after = pub_after_json.get("schemes", pub_after_json) if isinstance(pub_after_json, dict) else pub_after_json
+    assert any(s.get("id") == scheme_slug or s.get("slug") == scheme_slug for s in public_schemes_after)
 
     pub_detail_after = client.get(f"/api/schemes/{scheme_slug}")
     assert pub_detail_after.status_code == 200

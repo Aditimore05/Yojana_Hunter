@@ -104,7 +104,20 @@ function LoginFormContent() {
           {error && (
             <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-2.5 text-rose-700 text-xs sm:text-sm animate-fadeIn">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-500 mt-0.5" />
-              <div className="flex-1 font-medium">{error}</div>
+              <div className="flex-1 font-medium">
+                <span>{error}</span>
+                {error.toLowerCase().includes("not registered") && (
+                  <span className="block mt-1.5 font-bold">
+                    <Link
+                      href={`/register${redirectUrl ? `?redirect=${encodeURIComponent(redirectUrl)}` : ""}`}
+                      className="text-brand-blue hover:underline inline-flex items-center gap-1"
+                    >
+                      <span>Create your free citizen account here</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </span>
+                )}
+              </div>
             </div>
           )}
 

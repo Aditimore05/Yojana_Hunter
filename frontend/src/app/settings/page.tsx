@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Settings, Globe, Shield, Bell, CheckCircle2, User } from "lucide-react";
+import { Settings, Globe, Shield, CheckCircle2, User } from "lucide-react";
 import { getStoredLanguage, saveStoredLanguage, getStoredProfile } from "@/lib/storage";
 
 export default function SettingsPage() {

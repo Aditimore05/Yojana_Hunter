@@ -3,6 +3,7 @@ import { UserProfile } from './profile';
 export interface User {
   id: number;
   email: string;
+  name?: string | null;
   mobile?: string | null;
   role: 'citizen' | 'admin' | 'helper' | 'curator';
   isActive: boolean;

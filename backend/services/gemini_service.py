@@ -163,7 +163,20 @@ class GeminiService:
             }
 
         start_time = time.time()
-        client = cls.get_client()
+        try:
+            client = cls.get_client()
+        except Exception as e:
+            err_str = cls.sanitize_error_message(str(e))
+            is_quota = "RESOURCE_EXHAUSTED" in err_str or "429" in err_str or "quota" in err_str.lower()
+            return {
+                "configured": True,
+                "connected": False,
+                "model": cls.get_model_name(),
+                "groundingSupported": False,
+                "message": f"Connection initialization failed: {err_str}",
+                "quotaExhausted": is_quota,
+            }
+
         candidate_models = cls.get_candidate_models()
         active_model = candidate_models[0]
         connected = False

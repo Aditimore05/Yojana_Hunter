@@ -4,6 +4,7 @@ from database import SessionLocal
 from models import Scheme, SavedScheme, Profile
 from utils.auth import token_required
 from services.eligibility_service import SchemeEligibilityService
+from utils.activity import record_activity
 
 saved_schemes_bp = Blueprint("saved_schemes", __name__)
 
@@ -23,7 +24,17 @@ def list_saved_schemes():
             SavedScheme.user_id == user_id
         ).order_by(SavedScheme.saved_at.desc()).all()
 
-        profile = db.query(Profile).filter(Profile.user_id == user_id).first()
+        profile_id = request.args.get("profile_id")
+        profile = None
+        if profile_id:
+            try:
+                profile = db.query(Profile).filter(Profile.id == int(profile_id), Profile.user_id == user_id).first()
+            except (ValueError, TypeError):
+                profile = None
+        if not profile:
+            profile = db.query(Profile).filter(Profile.user_id == user_id, Profile.relationship == "Self").first()
+            if not profile:
+                profile = db.query(Profile).filter(Profile.user_id == user_id).order_by(Profile.id.asc()).first()
         profile_dict = profile.to_dict() if profile else {}
 
         results = []
@@ -119,6 +130,14 @@ def save_scheme():
         )
         db.add(new_saved)
         db.commit()
+
+        # Record activity
+        record_activity(
+            db,
+            user_id,
+            "scheme_saved",
+            {"scheme_id": scheme.id, "scheme_slug": scheme.slug, "scheme_name": scheme.name, "title": f"Saved '{scheme.name}'"}
+        )
 
         return jsonify({
             "saved": True,

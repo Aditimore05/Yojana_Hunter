@@ -13,7 +13,6 @@ import {
   ShieldCheck, 
   Sparkles, 
   CheckCircle2, 
-  FileText, 
   Search, 
   HelpCircle,
   LayoutDashboard
@@ -45,13 +44,6 @@ export default function LandingPage() {
           icon: UserIcon,
           color: "bg-purple-50 text-purple-600 border-purple-200",
           href: "/profile",
-        },
-        {
-          title: "Applications",
-          desc: "Track pre-filled application drafts & submissions",
-          icon: FileText,
-          color: "bg-emerald-50 text-emerald-600 border-emerald-200",
-          href: "/applications",
         },
       ]
     : [
@@ -238,8 +230,8 @@ export default function LandingPage() {
               </div>
             )}
 
-            {/* 4 Feature Shortcut Cards in a row */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3">
+            {/* Feature Shortcut Cards */}
+            <div className={`grid gap-3 pt-3 ${isAuthenticated ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-2 sm:grid-cols-4"}`}>
               {featureShortcuts.map((feat) => {
                 const Icon = feat.icon;
                 return (

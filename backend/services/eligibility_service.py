@@ -1030,9 +1030,16 @@ class SchemeEligibilityService:
             if not is_gen_ok:
                 return False, gen_fail_reason, None
 
-        # Child-only scheme check (if age_max <= 18, only valid if user is a minor)
+        # Women & Child category check (excludes adult males)
         scheme_cat = str(scheme.category or "").strip().lower()
         if any(wc in scheme_cat for wc in ["women & child", "women and child", "women child"]):
+            norm_g = cls.normalize_gender(user_gender)
+            if norm_g == "male":
+                if user_age is not None and user_age <= 18:
+                    pass  # Minor boy might be eligible for child welfare
+                else:
+                    return False, "Category restriction: 'Women & Child' schemes exclusively benefit women and children (Your profile: Male)", None
+
             if scheme.age_max is not None and scheme.age_max <= 18:
                 if user_age is not None and user_age > scheme.age_max:
                     return False, f"Age & Category restriction: Scheme for children up to {scheme.age_max} years (Your age: {user_age})", None

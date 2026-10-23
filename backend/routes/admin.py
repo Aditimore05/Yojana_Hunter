@@ -560,6 +560,8 @@ def admin_update_scheme(scheme_id: str):
             if new_status in ("published", "draft", "archived"):
                 scheme.status = new_status
                 scheme.is_active = (new_status == "published")
+                if new_status == "published":
+                    scheme.admin_review_status = "approved"
 
         # Update limits
         if "ageMin" in data:
@@ -686,6 +688,8 @@ def admin_update_scheme_status(scheme_id: str):
 
         scheme.status = new_status
         scheme.is_active = (new_status == "published")
+        if new_status == "published":
+            scheme.admin_review_status = "approved"
         scheme.updated_at = datetime.datetime.now(datetime.timezone.utc)
 
         db.commit()

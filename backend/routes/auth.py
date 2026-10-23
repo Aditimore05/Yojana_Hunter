@@ -13,6 +13,7 @@ from utils.auth import (
     rate_limit
 )
 from utils.email import send_password_reset_email, is_email_service_configured
+from utils.activity import record_activity
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -145,7 +146,7 @@ def register_user():
             state=profile_data.get("state") or None,
             district=profile_data.get("district") or None,
             education=profile_data.get("education") or None,
-            category=profile_data.get("category") or "General",
+            category=profile_data.get("category") or None,
             father_name=profile_data.get("fatherName") or profile_data.get("father_name") or None,
             date_of_birth=profile_data.get("dateOfBirth") or profile_data.get("date_of_birth") or None,
             land_holding_acres=float(profile_data.get("landHoldingAcres") or profile_data.get("land_holding_acres") or 0.0),
@@ -153,12 +154,15 @@ def register_user():
             is_student=is_student,
             has_business=has_business,
             is_disabled=bool(profile_data.get("isDisabled") or profile_data.get("is_disabled") or False),
-            updated_at=datetime.datetime.utcnow()
+            updated_at=datetime.datetime.utcnow() if profile_data else None
         )
-        new_profile.completeness_percent = calculate_completeness(new_profile)
+        new_profile.completeness_percent = calculate_completeness(new_profile) if profile_data else 0
 
         db.add(new_profile)
         db.commit()
+
+        # Record registration activity in audit log
+        record_activity(db, new_user.id, "user_registered", {"title": "Account created successfully", "email": new_user.email})
 
         # 6. Generate access token
         token = create_access_token(new_user.id, new_user.email, new_user.role)
@@ -219,10 +223,10 @@ def login_user():
 
         if not user:
             return jsonify({
-                "error": "Invalid credentials",
-                "message": "Invalid email address or password.",
-                "status_code": 401
-            }), 401
+                "error": "Not registered",
+                "message": "You are not registered. Please register first.",
+                "status_code": 404
+            }), 404
 
         if not user.is_active:
             return jsonify({
@@ -244,10 +248,13 @@ def login_user():
             profile = Profile(
                 user_id=user.id,
                 full_name=user.email.split("@")[0].capitalize(),
-                completeness_percent=50
+                completeness_percent=0
             )
             db.add(profile)
             db.commit()
+
+        # Record citizen login activity
+        record_activity(db, user.id, "user_login", {"title": "Signed in to citizen portal", "email": user.email})
 
         token = create_access_token(user.id, user.email, user.role, remember_me=remember_me)
 

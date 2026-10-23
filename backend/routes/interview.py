@@ -9,6 +9,7 @@ from models import Scheme, SchemeDocumentRequirement, Profile, User
 from utils.auth import optional_auth
 from services.eligibility_service import SchemeEligibilityService
 from services.gemini_service import GeminiService
+from services.navigation_service import NavigationService
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +106,7 @@ def handle_chat_message():
     """
     db = SessionLocal()
     try:
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
         message = (data.get("message") or data.get("prompt") or "").strip()
         lang = data.get("language") or "en"
         history = data.get("history") or data.get("conversation_history") or []
@@ -130,7 +131,25 @@ def handle_chat_message():
 
         msg_lower = message.lower().strip()
 
-        # 2. Query active published schemes from DB for knowledge grounding
+        # 2. Check for MCP-based navigation intent to any application page/tab
+        nav_verbs = [
+            "navigate", "go to", "open", "take me to", "show me", "where is", "where can i find",
+            "redirect", "visit", "how to reach", "access", "lead me to", "bring me to",
+            "page", "tab", "link", "url", "dashboard", "discovery", "admin", "settings",
+            "document", "application", "profile", "interview", "subscription", "saved schemes"
+        ]
+        if any(v in msg_lower for v in nav_verbs):
+            nav_match = NavigationService.resolve_navigation_intent(message)
+            if nav_match:
+                reply_text = NavigationService.format_navigation_reply(nav_match, lang=lang)
+                return jsonify({
+                    "reply": reply_text,
+                    "status": "success",
+                    "source": "mcp_navigation",
+                    "navigation": nav_match
+                }), 200
+
+        # 3. Query active published schemes from DB for knowledge grounding
         schemes = db.query(Scheme).options(
             joinedload(Scheme.document_requirements)
         ).filter(
@@ -519,3 +538,48 @@ def handle_chat_message():
         }), 200
     finally:
         db.close()
+
+
+@interview_bp.route("/navigation/routes", methods=["GET"])
+def get_all_navigation_routes():
+    """
+    GET /api/navigation/routes
+    Returns all verified application frontend routes, permissions, and URLs.
+    """
+    return jsonify({
+        "status": "success",
+        "routes": NavigationService.get_all_routes(),
+        "total_routes": len(NavigationService.get_all_routes())
+    }), 200
+
+
+@interview_bp.route("/navigation/resolve", methods=["POST"])
+def resolve_navigation_route():
+    """
+    POST /api/navigation/resolve
+    Resolves natural language query to an exact frontend destination with UI instructions.
+    """
+    data = request.get_json() or {}
+    query = (data.get("query") or data.get("page") or "").strip()
+    lang = data.get("language") or "en"
+
+    if not query:
+        return jsonify({
+            "status": "error",
+            "message": "Missing 'query' or 'page' in request payload."
+        }), 400
+
+    match = NavigationService.resolve_navigation_intent(query)
+    if not match:
+        return jsonify({
+            "status": "not_found",
+            "message": f"Could not resolve a matching page for '{query}'."
+        }), 404
+
+    formatted = NavigationService.format_navigation_reply(match, lang=lang)
+    return jsonify({
+        "status": "success",
+        "destination": match,
+        "reply": formatted
+    }), 200
+

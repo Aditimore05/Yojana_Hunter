@@ -7,7 +7,7 @@ import {
 } from '@/types/auth';
 import { UserProfile } from '@/types/profile';
 import { apiFetchDetailed, AUTH_TOKEN_KEY, AUTH_USER_KEY, getAuthToken } from '@/lib/api';
-import { saveStoredProfile } from '@/lib/storage';
+import { saveStoredProfile, clearAllUserData } from '@/lib/storage';
 
 export function setAuth(token: string, user: User, profile?: UserProfile): void {
   if (typeof window === 'undefined') return;
@@ -22,6 +22,7 @@ export function clearAuth(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(AUTH_TOKEN_KEY);
   localStorage.removeItem(AUTH_USER_KEY);
+  clearAllUserData();
 }
 
 export function getStoredUser(): User | null {
@@ -66,6 +67,7 @@ export async function login(
 export async function register(
   data: RegisterData
 ): Promise<{ success: boolean; data?: AuthResponse; error?: string }> {
+  clearAllUserData();
   const res = await apiFetchDetailed<AuthResponse>('/auth/register', {
     method: 'POST',
     body: JSON.stringify(data),

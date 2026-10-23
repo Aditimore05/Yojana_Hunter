@@ -4,22 +4,69 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { Download, Edit3, CheckCircle2, ShieldCheck, X, Save, FileText } from "lucide-react";
 import jsPDF from "jspdf";
-import { fetchApplicationDraft, updateApplicationDraft } from "@/services/applicationService";
+import { fetchApplicationDraft, fetchApplicationDraftAsync, updateApplicationDraft } from "@/services/applicationService";
 import { ApplicationDraft } from "@/types/application";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { useAuth } from "@/context/AuthContext";
 
 function ApplicationDraftContent() {
-  const [draft, setDraft] = useState<ApplicationDraft>(fetchApplicationDraft());
+  const { user, profile } = useAuth();
+  const [draft, setDraft] = useState<ApplicationDraft>(() => {
+    const d = fetchApplicationDraft();
+    const isPrevDemo = d && d.applicantName === "Aditi Lagad";
+    const effectiveName = !isPrevDemo && d?.applicantName
+      ? d.applicantName
+      : (profile?.name || user?.name || user?.email?.split("@")[0] || "");
+
+    return {
+      id: d?.id || `DRAFT-2026-APP-${Math.floor(1000 + Math.random() * 9000)}`,
+      schemeId: d?.schemeId || "pm-vidyalakshmi",
+      schemeName: d?.schemeName || "PM Vidyalakshmi Scheme",
+      applicantName: effectiveName,
+      fatherName: (!isPrevDemo && d?.fatherName) || profile?.fatherName || "",
+      dateOfBirth: (!isPrevDemo && d?.dateOfBirth) || profile?.dateOfBirth || "",
+      education: (!isPrevDemo && d?.education) || profile?.education || "",
+      familyIncome: (!isPrevDemo && d?.familyIncome) || profile?.annualIncome || "",
+      state: (!isPrevDemo && d?.state) || profile?.state || "",
+      district: (!isPrevDemo && d?.district) || profile?.district || "",
+      status: "draft",
+      createdAt: d?.createdAt || new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
+    };
+  });
+
   const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState<ApplicationDraft>(fetchApplicationDraft());
+  const [editForm, setEditForm] = useState<ApplicationDraft>(draft);
   const [isDownloading, setIsDownloading] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    const d = fetchApplicationDraft();
-    setDraft(d);
-    setEditForm(d);
-  }, []);
+    let active = true;
+    fetchApplicationDraftAsync().then((d) => {
+      if (active && d) {
+        const isPrevDemo = d.applicantName === "Aditi Lagad";
+        const effectiveName = !isPrevDemo && d.applicantName
+          ? d.applicantName
+          : (profile?.name || user?.name || user?.email?.split("@")[0] || "");
+
+        const syncd: ApplicationDraft = {
+          ...d,
+          applicantName: effectiveName,
+          fatherName: (!isPrevDemo && d.fatherName) || profile?.fatherName || "",
+          dateOfBirth: (!isPrevDemo && d.dateOfBirth) || profile?.dateOfBirth || "",
+          education: (!isPrevDemo && d.education) || profile?.education || "",
+          familyIncome: (!isPrevDemo && d.familyIncome) || profile?.annualIncome || "",
+          state: (!isPrevDemo && d.state) || profile?.state || "",
+          district: (!isPrevDemo && d.district) || profile?.district || "",
+        };
+        setDraft(syncd);
+        setEditForm(syncd);
+      }
+    }).catch(() => {});
+
+    return () => { active = false; };
+  }, [profile, user]);
+
+  const displayVal = (val?: string) => (val && val.trim() ? val.trim() : "—");
 
   const handleDownloadPDF = () => {
     setIsDownloading(true);
@@ -58,14 +105,14 @@ function ApplicationDraftContent() {
       doc.text("I. APPLICANT DETAILS", 20, 68);
 
       const fields = [
-        ["Applicant Name", draft.applicantName],
-        ["Father's Name", draft.fatherName],
-        ["Date of Birth", draft.dateOfBirth],
-        ["Education Level", draft.education],
-        ["Annual Family Income", draft.familyIncome],
-        ["State of Domicile", draft.state],
-        ["District", draft.district],
-        ["Application Status", "Pre-Verified Citizen Draft"],
+        ["Applicant Name", displayVal(draft.applicantName || profile?.name || user?.name)],
+        ["Father's Name", displayVal(draft.fatherName || profile?.fatherName)],
+        ["Date of Birth", displayVal(draft.dateOfBirth || profile?.dateOfBirth)],
+        ["Education Level", displayVal(draft.education || profile?.education)],
+        ["Annual Family Income", displayVal(draft.familyIncome || profile?.annualIncome)],
+        ["State of Domicile", displayVal(draft.state || profile?.state)],
+        ["District", displayVal(draft.district || profile?.district)],
+        ["Application Status", "Citizen Application Draft"],
       ];
 
       let y = 80;
@@ -96,7 +143,7 @@ function ApplicationDraftContent() {
       doc.setFont("helvetica", "normal");
       doc.setTextColor(51, 65, 85);
       doc.text(
-        "This application draft was generated following automated rules evaluation with 100% eligibility score. Submit this form alongside required certificates at the official department portal.",
+        "This application draft was generated following automated rules evaluation with verified eligibility criteria. Submit this form alongside required certificates at the official department portal.",
         25,
         192,
         { maxWidth: 160 }
@@ -115,7 +162,8 @@ function ApplicationDraftContent() {
       doc.text("Signature of Applicant: _____________________", 20, 250);
       doc.text(`Date: ${draft.createdAt}`, 130, 250);
 
-      doc.save(`Application_${draft.schemeId}_${draft.applicantName.replace(/\s+/g, "_")}.pdf`);
+      const applicantNameClean = (draft.applicantName || profile?.name || user?.name || "Citizen").replace(/[^a-zA-Z0-9_-]/g, "_");
+      doc.save(`Application_${draft.schemeId || "scheme"}_${applicantNameClean}.pdf`);
       setSuccessMsg("PDF Application Draft downloaded successfully!");
       setTimeout(() => setSuccessMsg(null), 3500);
     } catch (err) {
@@ -187,43 +235,43 @@ function ApplicationDraftContent() {
             <div className="flex items-center justify-between py-1.5 border-b border-slate-50">
               <span className="font-semibold text-slate-500 w-1/3">Applicant Name</span>
               <span className="text-slate-400 w-8">:</span>
-              <span className="font-extrabold text-brand-navy w-2/3">{draft.applicantName}</span>
+              <span className="font-extrabold text-brand-navy w-2/3">{displayVal(draft.applicantName || profile?.name || user?.name)}</span>
             </div>
 
             <div className="flex items-center justify-between py-1.5 border-b border-slate-50">
               <span className="font-semibold text-slate-500 w-1/3">Father's Name</span>
               <span className="text-slate-400 w-8">:</span>
-              <span className="font-bold text-slate-800 w-2/3">{draft.fatherName}</span>
+              <span className="font-bold text-slate-800 w-2/3">{displayVal(draft.fatherName || profile?.fatherName)}</span>
             </div>
 
             <div className="flex items-center justify-between py-1.5 border-b border-slate-50">
               <span className="font-semibold text-slate-500 w-1/3">Date of Birth</span>
               <span className="text-slate-400 w-8">:</span>
-              <span className="font-bold text-slate-800 w-2/3">{draft.dateOfBirth}</span>
+              <span className="font-bold text-slate-800 w-2/3">{displayVal(draft.dateOfBirth || profile?.dateOfBirth)}</span>
             </div>
 
             <div className="flex items-center justify-between py-1.5 border-b border-slate-50">
               <span className="font-semibold text-slate-500 w-1/3">Education</span>
               <span className="text-slate-400 w-8">:</span>
-              <span className="font-bold text-slate-800 w-2/3">{draft.education}</span>
+              <span className="font-bold text-slate-800 w-2/3">{displayVal(draft.education || profile?.education)}</span>
             </div>
 
             <div className="flex items-center justify-between py-1.5 border-b border-slate-50">
               <span className="font-semibold text-slate-500 w-1/3">Family Income</span>
               <span className="text-slate-400 w-8">:</span>
-              <span className="font-bold text-slate-800 w-2/3">{draft.familyIncome}</span>
+              <span className="font-bold text-slate-800 w-2/3">{displayVal(draft.familyIncome || profile?.annualIncome)}</span>
             </div>
 
             <div className="flex items-center justify-between py-1.5 border-b border-slate-50">
               <span className="font-semibold text-slate-500 w-1/3">State</span>
               <span className="text-slate-400 w-8">:</span>
-              <span className="font-bold text-slate-800 w-2/3">{draft.state}</span>
+              <span className="font-bold text-slate-800 w-2/3">{displayVal(draft.state || profile?.state)}</span>
             </div>
 
             <div className="flex items-center justify-between py-1.5 border-b border-slate-50">
               <span className="font-semibold text-slate-500 w-1/3">District</span>
               <span className="text-slate-400 w-8">:</span>
-              <span className="font-bold text-slate-800 w-2/3">{draft.district}</span>
+              <span className="font-bold text-slate-800 w-2/3">{displayVal(draft.district || profile?.district)}</span>
             </div>
           </div>
         </div>

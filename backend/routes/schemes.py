@@ -6,6 +6,7 @@ from models import Scheme, SchemeRule, Profile
 from services.eligibility_service import SchemeEligibilityService
 from services.subscription_service import SubscriptionService, FREE_SCHEMES_LIMIT
 from utils.auth import optional_auth
+from utils.activity import record_activity
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,17 @@ def get_current_profile_dict(db) -> dict:
     base_profile = None
     current_user = getattr(g, "current_user", None)
     if current_user:
-        user_profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
+        profile_id = request.args.get("profile_id")
+        user_profile = None
+        if profile_id:
+            try:
+                user_profile = db.query(Profile).filter(Profile.id == int(profile_id), Profile.user_id == current_user.id).first()
+            except (ValueError, TypeError):
+                user_profile = None
+        if not user_profile:
+            user_profile = db.query(Profile).filter(Profile.user_id == current_user.id, Profile.relationship == "Self").first()
+            if not user_profile:
+                user_profile = db.query(Profile).filter(Profile.user_id == current_user.id).order_by(Profile.id.asc()).first()
         if user_profile:
             base_profile = user_profile.to_dict()
 
@@ -212,7 +223,7 @@ def list_schemes():
             query = db.query(Scheme).filter(
                 Scheme.is_active == True,
                 Scheme.status == "published",
-                Scheme.admin_review_status.in_(["approved", "published"])
+                (Scheme.admin_review_status.in_(["approved", "published"])) | (Scheme.admin_review_status.is_(None))
             )
             if category_filter and category_filter.lower() != "all":
                 query = query.filter(Scheme.category.ilike(f"%{category_filter}%"))
@@ -266,6 +277,21 @@ def list_schemes():
 
         total_count = len(schemes)
         accessible_schemes = schemes if is_premium else schemes[:FREE_SCHEMES_LIMIT]
+
+        # Record scheme search activity for authenticated user
+        if getattr(g, "current_user", None) and query_filter and query_filter.strip():
+            record_activity(
+                db,
+                g.current_user.id,
+                "scheme_search",
+                {
+                    "query": query_filter.strip(),
+                    "category": category_filter,
+                    "state": state_filter,
+                    "title": f"Searched schemes for '{query_filter.strip()}'",
+                    "results_count": total_count
+                }
+            )
 
         logger.info(f"[FLASK /api/schemes RESPONSE] Returning {len(accessible_schemes)}/{total_count} schemes to citizen (is_premium={is_premium})")
 

@@ -4,7 +4,6 @@ import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { 
-  Bell, 
   Globe, 
   ChevronDown, 
   User as UserIcon, 
@@ -14,8 +13,7 @@ import {
   LayoutDashboard, 
   LogOut, 
   Sparkles,
-  ShieldCheck,
-  FileText
+  ShieldCheck
 } from "lucide-react";
 import { getStoredLanguage, saveStoredLanguage } from "@/lib/storage";
 import { useAuth } from "@/context/AuthContext";
@@ -138,14 +136,6 @@ export const AppHeader: React.FC = () => {
                 My Schemes
               </Link>
               <Link
-                href="/applications"
-                className={`text-sm font-medium transition ${
-                  pathname === "/applications" ? "text-brand-blue font-semibold" : "text-slate-600 hover:text-brand-navy"
-                }`}
-              >
-                Applications
-              </Link>
-              <Link
                 href="/profile"
                 className={`text-sm font-medium transition ${
                   pathname === "/profile" ? "text-brand-blue font-semibold" : "text-slate-600 hover:text-brand-navy"
@@ -201,17 +191,6 @@ export const AppHeader: React.FC = () => {
             )}
           </div>
 
-          {/* Notification Bell (Only for logged-in citizens) */}
-          {isAuthenticated && (
-            <Link
-              href="/dashboard"
-              className="relative p-2 text-slate-500 hover:text-brand-navy rounded-lg hover:bg-slate-100 transition"
-              title="Notifications"
-            >
-              <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"></span>
-            </Link>
-          )}
 
           {/* Authenticated User Menu or Guest Sign In/Register */}
           {isAuthenticated ? (
@@ -240,6 +219,11 @@ export const AppHeader: React.FC = () => {
                     <p className="text-2xs text-slate-500 truncate">
                       {user?.email}
                     </p>
+                    {profile?.userLevel && (
+                      <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-3xs font-extrabold bg-blue-50 text-brand-blue border border-blue-200">
+                        Level {profile.userLevel.level} • {profile.userLevel.levelName}
+                      </span>
+                    )}
                   </div>
 
                   {/* Menu Items */}
@@ -269,15 +253,6 @@ export const AppHeader: React.FC = () => {
                     >
                       <Bookmark className="w-3.5 h-3.5 text-slate-400" />
                       <span>My Schemes</span>
-                    </Link>
-
-                    <Link
-                      href="/applications"
-                      onClick={() => setUserMenuOpen(false)}
-                      className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-blue-50 hover:text-brand-blue transition"
-                    >
-                      <FileText className="w-3.5 h-3.5 text-slate-400" />
-                      <span>Applications</span>
                     </Link>
                   </div>
 
@@ -377,13 +352,6 @@ export const AppHeader: React.FC = () => {
                 className="block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
                 My Schemes
-              </Link>
-              <Link
-                href="/applications"
-                onClick={() => setMobileMenuOpen(false)}
-                className="block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
-              >
-                Applications
               </Link>
               <Link
                 href="/action-plan"

@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { 
-  Search, 
   Sparkles, 
   ArrowRight, 
   RotateCcw, 
@@ -31,8 +30,11 @@ import { SchemeCard } from "@/components/schemes/SchemeCard";
 import { UserProfile } from "@/types/profile";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { SubscriptionModal } from "@/components/subscription/SubscriptionModal";
+import { useAuth } from "@/context/AuthContext";
+import { FamilyProfileSwitcher } from "@/components/profile/FamilyProfileSwitcher";
 
 function SchemesContent() {
+  const { profile: authProfile } = useAuth();
   const [activeFilter, setActiveFilter] = useState<EligibilityStatus | "all">("all");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedState, setSelectedState] = useState("all");
@@ -101,7 +103,7 @@ function SchemesContent() {
     const stateParam = selectedState === "All States" ? "all" : selectedState;
 
     const [p, meta] = await Promise.all([
-      fetchProfile(),
+      authProfile ? Promise.resolve(authProfile) : fetchProfile(),
       getSyncStatus()
     ]);
 
@@ -137,7 +139,7 @@ function SchemesContent() {
     setVisibleLimit(10);
     const timer = setTimeout(loadData, 150);
     return () => clearTimeout(timer);
-  }, [activeFilter, searchQuery, selectedCategory, selectedState]);
+  }, [activeFilter, searchQuery, selectedCategory, selectedState, authProfile]);
 
   const handleSyncNow = async () => {
     setSyncing(true);
@@ -213,7 +215,7 @@ function SchemesContent() {
       isStudent,
       hasBusiness,
       landHoldingAcres: isFarmer ? (profile.landHoldingAcres || 2.0) : 0,
-    });
+    }, profile.id);
     await loadData();
   };
 
@@ -221,7 +223,7 @@ function SchemesContent() {
     if (!profile) return;
     await updateProfile({
       gender: newGender,
-    });
+    }, profile.id);
     await loadData();
   };
 
@@ -287,15 +289,6 @@ function SchemesContent() {
               <RefreshCw className={`w-3.5 h-3.5 text-brand-blue ${syncing ? "animate-spin text-brand-blue" : ""}`} />
               <span>{syncing ? "Probing Sources..." : "Synchronize Schemes"}</span>
             </button>
-
-            <Link
-              href="/schemes/match"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-brand-blue to-teal-600 hover:from-brand-blue-dark hover:to-teal-700 text-white font-bold text-xs shadow-md transition"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Interactive Matcher</span>
-              <ArrowRight className="w-3 h-3" />
-            </Link>
           </div>
         </div>
 
@@ -310,7 +303,40 @@ function SchemesContent() {
           </div>
         )}
 
-        {/* 1. MENTOR DEMO PROFILE SUMMARY CARD */}
+        {/* Unsaved Profile Warning Banner */}
+        {(!profile?.isProfileSaved && !profile?.is_profile_saved && (!profile?.occupation || !profile?.state || (profile?.completenessPercent ?? 0) === 0)) && (
+          <div className="p-4 rounded-2xl bg-amber-50 border-2 border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-amber-900 shadow-sm animate-fadeIn">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+                <AlertCircle className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <h4 className="text-xs sm:text-sm font-extrabold text-amber-900">
+                  Please save your profile details before finding schemes.
+                </h4>
+                <p className="text-2xs text-amber-700">
+                  You are currently seeing the general catalog. Save your profile details for personalized criteria evaluation.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/profile"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold shrink-0 shadow-xs transition"
+            >
+              <span>Save Profile Details →</span>
+            </Link>
+          </div>
+        )}
+
+        {/* 1. BENEFICIARY PROFILE SWITCHER */}
+        <FamilyProfileSwitcher
+          onProfileChanged={(newProf) => {
+            setProfile(newProf);
+            loadData();
+          }}
+        />
+
+        {/* 2. MENTOR DEMO PROFILE SUMMARY CARD */}
         <div className="p-5 bg-white rounded-2xl border border-brand-border shadow-card space-y-3.5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
             <div className="flex items-center gap-2.5">
@@ -318,11 +344,16 @@ function SchemesContent() {
                 <UserCheck className="w-5 h-5 text-brand-blue" />
               </div>
               <div>
-                <h3 className="font-extrabold text-sm sm:text-base text-brand-navy">
-                  Active Citizen Profile Evaluation
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-extrabold text-sm sm:text-base text-brand-navy">
+                    Active Citizen Profile Evaluation: {profile?.name || "Citizen"}
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-md text-2xs font-extrabold bg-blue-100 text-brand-blue border border-blue-200">
+                    {profile?.relationship || "Self"}
+                  </span>
+                </div>
                 <p className="text-2xs text-slate-500">
-                  Seven primary matching fields collected via Conversational Chatbot
+                  Seven primary matching fields evaluated for {profile?.name || "this beneficiary"}
                 </p>
               </div>
             </div>
@@ -577,48 +608,6 @@ function SchemesContent() {
           >
             Not Eligible ({counts.not_eligible})
           </button>
-        </div>
-
-        {/* 4. SEARCH & DROPDOWN FILTERS */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-white p-3 rounded-2xl border border-brand-border shadow-2xs">
-          <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search scheme name or benefit..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-blue/30 focus:border-brand-blue"
-            />
-          </div>
-
-          <div>
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full px-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-blue/30 focus:border-brand-blue text-slate-700 font-medium"
-            >
-              {categories.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <select
-              value={selectedState}
-              onChange={(e) => setSelectedState(e.target.value)}
-              className="w-full px-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-blue/30 focus:border-brand-blue text-slate-700 font-medium"
-            >
-              {states.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </div>
         </div>
 
         {/* 5. RECOMMENDATIONS LIST */}
